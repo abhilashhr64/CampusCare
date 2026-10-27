@@ -198,6 +198,66 @@ export interface AssistantConversation {
   updated_at: string;
 }
 
+export interface DuplicateCluster {
+  cluster_id: string;
+  canonical_complaint_id: string;
+  duplicate_complaint_id: string;
+  similarity_score: number;
+  location_matched: boolean;
+  detected_at: string;
+}
+
+export interface SlaRiskAssessment {
+  id: string;
+  complaint_id: string;
+  ticket_number: string;
+  title: string;
+  category: string;
+  location_tag: string;
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  hours_remaining: number;
+  projected_breach_probability: number;
+  assessed_at: string;
+}
+
+export interface AttendanceRiskAlert {
+  id: string;
+  student_id: string;
+  class_section_id: string;
+  conducted_count: number;
+  attended_count: number;
+  current_percentage: number;
+  classes_needed_for_safe: number;
+  alert_status: string;
+  created_at: string;
+}
+
+export interface FeedbackThemeAggregate {
+  id: string;
+  cycle_id: string;
+  lecturer_id: string;
+  theme_tag: string;
+  sentiment: "POSITIVE" | "NEUTRAL" | "CONSTRUCTIVE";
+  mention_count: number;
+  sample_masked_excerpt: string;
+}
+
+export interface NotificationOut {
+  id: string;
+  subject: string;
+  body: string;
+  event_type: string;
+  channel: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  channel: string;
+  is_enabled: boolean;
+  digest_frequency: "REALTIME" | "DAILY_DIGEST" | "WEEKLY_SUMMARY";
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -404,6 +464,35 @@ export const api = {
       request<AssistantMessage>(`/assistant/conversations/${convId}/chat`, {
         method: "POST",
         body: JSON.stringify({ query }),
+      }),
+  },
+  analytics: {
+    detectDuplicates: (complaintId: string, threshold?: number) =>
+      request<DuplicateCluster[]>(
+        `/analytics/complaints/${complaintId}/duplicates${threshold ? `?threshold=${threshold}` : ""}`,
+        { method: "POST" }
+      ),
+    assessSlaRisks: () =>
+      request<SlaRiskAssessment[]>("/analytics/sla-risks"),
+    scanAttendanceDeficits: (targetPercentage?: number) =>
+      request<AttendanceRiskAlert[]>(
+        `/analytics/attendance-alerts/scan${targetPercentage ? `?target_percentage=${targetPercentage}` : ""}`,
+        { method: "POST" }
+      ),
+    getFeedbackThemes: (cycleId: string, lecturerId: string) =>
+      request<FeedbackThemeAggregate[]>(
+        `/analytics/feedback-themes?cycle_id=${cycleId}&lecturer_id=${lecturerId}`
+      ),
+  },
+  notifications: {
+    getInbox: (limit?: number) =>
+      request<NotificationOut[]>(`/notifications/inbox${limit ? `?limit=${limit}` : ""}`),
+    getPreferences: () =>
+      request<NotificationPreference[]>("/notifications/preferences"),
+    updatePreference: (data: { channel: string; is_enabled: boolean; digest_frequency?: string }) =>
+      request<any>("/notifications/preferences", {
+        method: "PUT",
+        body: JSON.stringify(data),
       }),
   },
 };

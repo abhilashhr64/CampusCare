@@ -129,3 +129,15 @@ class DirectoryService:
         db.commit()
         db.refresh(section)
         return section
+
+    @staticmethod
+    def list_enrollments_with_course(db: Session, college_id: uuid.UUID) -> list[tuple[uuid.UUID, uuid.UUID, str, str]]:
+        """Returns list of (student_id, class_section_id, course_code, course_title) under tenant RLS."""
+        set_tenant_context(db, college_id=college_id)
+        stmt = (
+            select(Enrollment.student_id, ClassSection.id, Course.code, Course.title)
+            .join(ClassSection, ClassSection.id == Enrollment.class_section_id)
+            .join(Course, Course.id == ClassSection.course_id)
+            .where(Enrollment.college_id == college_id)
+        )
+        return list(db.execute(stmt).all())

@@ -228,5 +228,25 @@ def authorize(
     if action in ("assistant:chat", "assistant:read"):
         return Decision(allowed=True, reason_code="ALLOW_AUTHENTICATED_CHAT")
 
+    # --- Notifications & Preferences (Phase 4, Rule EV-3) ---
+    if action in ("notifications:read", "notifications:manage"):
+        return Decision(allowed=True, reason_code="ALLOW_USER_NOTIFICATIONS")
+
+    # --- Intelligence & Analytics (Phase 4, Rule B1, B3) ---
+    if action in ("analytics:view_duplicates", "analytics:view_sla_risk"):
+        if "DEPARTMENT_ADMIN" in actor.roles or "COLLEGE_ADMIN" in actor.roles:
+            return Decision(allowed=True, reason_code="ALLOW_ADMIN_ANALYTICS")
+        return Decision(allowed=False, reason_code="DENY_INSUFFICIENT_ROLE")
+
+    if action == "analytics:manage_attendance_alerts":
+        if "DEPARTMENT_ADMIN" in actor.roles or "COLLEGE_ADMIN" in actor.roles or "LECTURER" in actor.roles:
+            return Decision(allowed=True, reason_code="ALLOW_ATTENDANCE_MANAGER")
+        return Decision(allowed=False, reason_code="DENY_INSUFFICIENT_ROLE")
+
+    if action == "analytics:view_feedback_themes":
+        if "LECTURER" in actor.roles or "DEPARTMENT_ADMIN" in actor.roles or "COLLEGE_ADMIN" in actor.roles:
+            return Decision(allowed=True, reason_code="ALLOW_FEEDBACK_THEMES")
+        return Decision(allowed=False, reason_code="DENY_INSUFFICIENT_ROLE")
+
     # Catch-all: Deny-by-default (Rule NR-3)
     return Decision(allowed=False, reason_code="DENY_DEFAULT")

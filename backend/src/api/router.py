@@ -8,6 +8,8 @@ from src.modules.feedback.router import router as feedback_router
 from src.modules.attendance.router import router as attendance_router
 from src.modules.knowledge.router import router as knowledge_router
 from src.modules.assistant.router import router as assistant_router
+from src.modules.notifications.router import router as notifications_router
+from src.modules.analytics.router import router as analytics_router
 from src.api.dependencies import require_permission
 
 api_router = APIRouter(prefix="/api/v1")
@@ -22,6 +24,8 @@ api_router.include_router(feedback_router)
 api_router.include_router(attendance_router)
 api_router.include_router(knowledge_router)
 api_router.include_router(assistant_router)
+api_router.include_router(notifications_router)
+api_router.include_router(analytics_router)
 
 
 

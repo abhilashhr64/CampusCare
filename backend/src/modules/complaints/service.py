@@ -319,3 +319,23 @@ class ComplaintsService:
         db.commit()
         db.refresh(complaint)
         return complaint
+
+    @staticmethod
+    def get_complaint_dto(db: Session, college_id: uuid.UUID, complaint_id: uuid.UUID) -> Optional[ComplaintResponse]:
+        set_tenant_context(db, college_id=college_id)
+        c = db.get(Complaint, complaint_id)
+        if not c or c.college_id != college_id:
+            return None
+        return ComplaintResponse.model_validate(c)
+
+    @staticmethod
+    def list_open_complaints_dto(db: Session, college_id: uuid.UUID) -> List[ComplaintResponse]:
+        set_tenant_context(db, college_id=college_id)
+        stmt = (
+            select(Complaint)
+            .where(
+                Complaint.college_id == college_id,
+                Complaint.status.in_(["SUBMITTED", "ASSIGNED", "IN_PROGRESS"]),
+            )
+        )
+        return [ComplaintResponse.model_validate(c) for c in db.scalars(stmt).all()]

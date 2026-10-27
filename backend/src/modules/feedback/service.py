@@ -203,3 +203,36 @@ class FeedbackService:
             overall_rating=overall,
             qualitative_summary="Aggregates generated from verified k-anonymous student evaluations.",
         )
+
+    @staticmethod
+    def get_qualitative_comments_if_threshold_met(
+        db: Session,
+        college_id: uuid.UUID,
+        cycle_id: uuid.UUID,
+        lecturer_id: uuid.UUID,
+    ) -> List[str]:
+        set_tenant_context(db, college_id=college_id)
+        cycle = db.get(FeedbackCycle, cycle_id)
+        if not cycle or cycle.college_id != college_id:
+            raise ValueError("Feedback cycle not found.")
+
+        stmt_count = select(func.count(FeedbackAnswer.id)).where(
+            FeedbackAnswer.college_id == college_id,
+            FeedbackAnswer.cycle_id == cycle_id,
+            FeedbackAnswer.lecturer_id == lecturer_id,
+        )
+        count = db.scalar(stmt_count) or 0
+
+        if count < cycle.k_anonymity_threshold:
+            raise ValueError(
+                f"k-anonymity gate enforced: response count ({count}) is below threshold "
+                f"({cycle.k_anonymity_threshold}). Individual qualitative comments remain masked."
+            )
+
+        stmt = select(FeedbackAnswer.comment_clean).where(
+            FeedbackAnswer.college_id == college_id,
+            FeedbackAnswer.cycle_id == cycle_id,
+            FeedbackAnswer.lecturer_id == lecturer_id,
+            FeedbackAnswer.comment_clean.is_not(None),
+        )
+        return [c for c in db.scalars(stmt).all() if c and len(c.strip()) > 0]

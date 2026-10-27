@@ -1383,6 +1383,308 @@
         }
       }
     },
+    "/api/v1/notifications/preferences": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Get Preferences",
+        "description": "Retrieves user notification preferences under tenant RLS (Rule EV-3).",
+        "operationId": "get_preferences_api_v1_notifications_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Update Preference",
+        "description": "Updates user notification delivery preference.",
+        "operationId": "update_preference_api_v1_notifications_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/inbox": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List Inbox",
+        "description": "Lists notifications delivered to current user under tenant isolation.",
+        "operationId": "list_inbox_api_v1_notifications_inbox_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationOut"
+                  },
+                  "title": "Response List Inbox Api V1 Notifications Inbox Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/complaints/{complaint_id}/duplicates": {
+      "post": {
+        "tags": [
+          "Intelligence & Analytics"
+        ],
+        "summary": "Detect Duplicate Complaints",
+        "description": "Detects co-located and textually similar duplicate complaints within the tenant (Rule B3).",
+        "operationId": "detect_duplicate_complaints_api_v1_analytics_complaints__complaint_id__duplicates_post",
+        "parameters": [
+          {
+            "name": "complaint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Complaint Id"
+            }
+          },
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.1,
+              "default": 0.35,
+              "title": "Threshold"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DuplicateClusterOut"
+                  },
+                  "title": "Response Detect Duplicate Complaints Api V1 Analytics Complaints  Complaint Id  Duplicates Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/sla-risks": {
+      "get": {
+        "tags": [
+          "Intelligence & Analytics"
+        ],
+        "summary": "Assess Sla Risks",
+        "description": "Calculates SLA deadline breach risk for department admins (Rule B1, B3).",
+        "operationId": "assess_sla_risks_api_v1_analytics_sla_risks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SlaRiskOut"
+                  },
+                  "type": "array",
+                  "title": "Response Assess Sla Risks Api V1 Analytics Sla Risks Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/attendance-alerts/scan": {
+      "post": {
+        "tags": [
+          "Intelligence & Analytics"
+        ],
+        "summary": "Scan Attendance Deficits",
+        "description": "Scans student attendance and triggers proactive supportive recovery alerts (Rule B1, B3).",
+        "operationId": "scan_attendance_deficits_api_v1_analytics_attendance_alerts_scan_post",
+        "parameters": [
+          {
+            "name": "target_percentage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 100.0,
+              "minimum": 50.0,
+              "default": 75.0,
+              "title": "Target Percentage"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttendanceRiskOut"
+                  },
+                  "title": "Response Scan Attendance Deficits Api V1 Analytics Attendance Alerts Scan Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/feedback-themes": {
+      "get": {
+        "tags": [
+          "Intelligence & Analytics"
+        ],
+        "summary": "Get Feedback Themes",
+        "description": "Extracts qualitative feedback themes under strict k-anonymity (Rule NR-10 & ADR-004).",
+        "operationId": "get_feedback_themes_api_v1_analytics_feedback_themes_get",
+        "parameters": [
+          {
+            "name": "cycle_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cycle Id"
+            }
+          },
+          {
+            "name": "lecturer_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Lecturer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackThemeOut"
+                  },
+                  "title": "Response Get Feedback Themes Api V1 Analytics Feedback Themes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/system/health": {
       "get": {
         "tags": [
@@ -1484,6 +1786,63 @@
           "student_records"
         ],
         "title": "AttendanceOpEntry"
+      },
+      "AttendanceRiskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "student_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Student Id"
+          },
+          "class_section_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Section Id"
+          },
+          "conducted_count": {
+            "type": "integer",
+            "title": "Conducted Count"
+          },
+          "attended_count": {
+            "type": "integer",
+            "title": "Attended Count"
+          },
+          "current_percentage": {
+            "type": "number",
+            "title": "Current Percentage"
+          },
+          "classes_needed_for_safe": {
+            "type": "integer",
+            "title": "Classes Needed For Safe"
+          },
+          "alert_status": {
+            "type": "string",
+            "title": "Alert Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "student_id",
+          "class_section_id",
+          "conducted_count",
+          "attended_count",
+          "current_percentage",
+          "classes_needed_for_safe",
+          "alert_status",
+          "created_at"
+        ],
+        "title": "AttendanceRiskOut"
       },
       "ChatRequest": {
         "properties": {
@@ -2015,6 +2374,48 @@
         ],
         "title": "DepartmentResponse"
       },
+      "DuplicateClusterOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "canonical_complaint_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Canonical Complaint Id"
+          },
+          "duplicate_complaint_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duplicate Complaint Id"
+          },
+          "similarity_score": {
+            "type": "number",
+            "title": "Similarity Score"
+          },
+          "detected_reason": {
+            "type": "string",
+            "title": "Detected Reason"
+          },
+          "detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Detected At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "canonical_complaint_id",
+          "duplicate_complaint_id",
+          "similarity_score",
+          "detected_reason",
+          "detected_at"
+        ],
+        "title": "DuplicateClusterOut"
+      },
       "FeedbackAggregateResponse": {
         "properties": {
           "lecturer_id": {
@@ -2256,6 +2657,58 @@
         ],
         "title": "FeedbackSubmitRequest"
       },
+      "FeedbackThemeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cycle Id"
+          },
+          "lecturer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lecturer Id"
+          },
+          "theme_tag": {
+            "type": "string",
+            "title": "Theme Tag"
+          },
+          "sentiment_polarity": {
+            "type": "string",
+            "title": "Sentiment Polarity"
+          },
+          "mention_count": {
+            "type": "integer",
+            "title": "Mention Count"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cycle_id",
+          "lecturer_id",
+          "theme_tag",
+          "sentiment_polarity",
+          "mention_count",
+          "summary_text",
+          "computed_at"
+        ],
+        "title": "FeedbackThemeOut"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2321,6 +2774,81 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "NotificationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "channel",
+          "subject",
+          "body",
+          "status",
+          "created_at"
+        ],
+        "title": "NotificationOut"
+      },
+      "PreferenceUpdate": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_type",
+          "channel",
+          "is_enabled"
+        ],
+        "title": "PreferenceUpdate"
       },
       "ResolutionConfirmRequest": {
         "properties": {
@@ -2662,6 +3190,67 @@
           "created_at"
         ],
         "title": "SessionResponse"
+      },
+      "SlaRiskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "complaint_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Complaint Id"
+          },
+          "ticket_number": {
+            "type": "string",
+            "title": "Ticket Number"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "location_tag": {
+            "type": "string",
+            "title": "Location Tag"
+          },
+          "risk_level": {
+            "type": "string",
+            "title": "Risk Level"
+          },
+          "hours_remaining": {
+            "type": "number",
+            "title": "Hours Remaining"
+          },
+          "projected_breach_probability": {
+            "type": "number",
+            "title": "Projected Breach Probability"
+          },
+          "assessed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Assessed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "complaint_id",
+          "ticket_number",
+          "title",
+          "category",
+          "location_tag",
+          "risk_level",
+          "hours_remaining",
+          "projected_breach_probability",
+          "assessed_at"
+        ],
+        "title": "SlaRiskOut"
       },
       "StudentSignupRequest": {
         "properties": {

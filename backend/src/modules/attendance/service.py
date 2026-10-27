@@ -263,3 +263,39 @@ class AttendanceService:
         ) or 0
 
         return AttendanceService.calculate_what_if(conducted, attended, 75.0)
+
+    @staticmethod
+    def get_section_attendance_counts(
+        db: Session,
+        college_id: uuid.UUID,
+        class_section_id: uuid.UUID,
+        student_id: uuid.UUID,
+    ) -> tuple[int, int]:
+        """Returns (conducted, attended) counts for student in section under tenant RLS."""
+        set_tenant_context(db, college_id=college_id)
+        conducted = db.scalar(
+            select(func.count(AttendanceSession.id)).where(
+                AttendanceSession.college_id == college_id,
+                AttendanceSession.class_section_id == class_section_id,
+            )
+        ) or 0
+        if conducted == 0:
+            return 0, 0
+
+        attended = db.scalar(
+            select(func.count(AttendanceRecord.id))
+            .join(
+                AttendanceSession,
+                and_(
+                    AttendanceSession.id == AttendanceRecord.session_id,
+                    AttendanceSession.college_id == AttendanceRecord.college_id,
+                ),
+            )
+            .where(
+                AttendanceRecord.college_id == college_id,
+                AttendanceRecord.student_id == student_id,
+                AttendanceSession.class_section_id == class_section_id,
+                AttendanceRecord.status == "PRESENT",
+            )
+        ) or 0
+        return conducted, attended
