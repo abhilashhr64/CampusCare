@@ -24,6 +24,8 @@ import src.modules.audit.models
 import src.modules.attendance.models
 import src.modules.complaints.models
 import src.modules.feedback.models
+import src.modules.knowledge.models
+import src.modules.assistant.models
 import src.core.outbox
 
 

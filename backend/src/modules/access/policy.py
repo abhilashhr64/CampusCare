@@ -216,5 +216,17 @@ def authorize(
             )
         return Decision(allowed=False, reason_code="DENY_ADMIN_PRIVILEGE_REQUIRED")
 
+    # --- Knowledge Base & Cited Assistant (Phase 3, Rule TN-6, C2) ---
+    if action == "knowledge:read":
+        return Decision(allowed=True, reason_code="ALLOW_AUTHENTICATED_READ")
+
+    if action in ("knowledge:create", "knowledge:manage"):
+        if "COLLEGE_ADMIN" in actor.roles or "DEPARTMENT_ADMIN" in actor.roles:
+            return Decision(allowed=True, reason_code="ALLOW_ADMIN")
+        return Decision(allowed=False, reason_code="DENY_INSUFFICIENT_ROLE")
+
+    if action in ("assistant:chat", "assistant:read"):
+        return Decision(allowed=True, reason_code="ALLOW_AUTHENTICATED_CHAT")
+
     # Catch-all: Deny-by-default (Rule NR-3)
     return Decision(allowed=False, reason_code="DENY_DEFAULT")

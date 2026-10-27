@@ -136,6 +136,68 @@ export interface SyncOutcome {
   server_records?: Array<{ student_id: string; status: string }>;
 }
 
+export interface KnowledgeDocument {
+  id: string;
+  college_id: string;
+  title: string;
+  category: string;
+  audience: string;
+  source_ref: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SearchResult {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  source_ref: string;
+  category: string;
+  content: string;
+  similarity_score: number;
+}
+
+export interface AssistantCitation {
+  document_title: string;
+  source_ref: string;
+  category: string;
+  excerpt: string;
+}
+
+export interface AssistantDraftAction {
+  action_type: string;
+  category?: string;
+  title?: string;
+  description?: string;
+  location_tag?: string;
+  sla_committed_hours?: number;
+  requires_confirmation?: boolean;
+  recommended_department?: string;
+  inquiry_summary?: string;
+}
+
+export interface AssistantMessage {
+  id: string;
+  conversation_id: string;
+  sender_role: "USER" | "ASSISTANT";
+  content: string;
+  citations: AssistantCitation[];
+  confidence_score: number;
+  routing_action: "DIRECT_ANSWER" | "ROUTE_TO_DEPT" | "PROPOSED_DRAFT" | "NONE";
+  draft_action: AssistantDraftAction | null;
+  created_at: string;
+}
+
+export interface AssistantConversation {
+  id: string;
+  college_id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -322,6 +384,27 @@ export const api = {
           target_percentage ? `&target_percentage=${target_percentage}` : ""
         }`
       ),
+  },
+  knowledge: {
+    createDocument: (data: { title: string; category: string; audience?: string; source_ref: string }) =>
+      request<KnowledgeDocument>("/knowledge/documents", { method: "POST", body: JSON.stringify(data) }),
+    addChunks: (docId: string, chunks: Array<{ content: string; chunk_index: number; audience?: string }>) =>
+      request<any>(`/knowledge/documents/${docId}/chunks`, { method: "POST", body: JSON.stringify(chunks) }),
+    search: (query: string, audience?: string) =>
+      request<SearchResult[]>(`/knowledge/search?q=${encodeURIComponent(query)}${audience ? `&audience=${audience}` : ""}`),
+  },
+  assistant: {
+    createConversation: (title: string = "New Inquiry") =>
+      request<AssistantConversation>("/assistant/conversations", { method: "POST", body: JSON.stringify({ title }) }),
+    listConversations: () =>
+      request<AssistantConversation[]>("/assistant/conversations"),
+    listMessages: (convId: string) =>
+      request<AssistantMessage[]>(`/assistant/conversations/${convId}/messages`),
+    chatWithAssistant: (convId: string, query: string) =>
+      request<AssistantMessage>(`/assistant/conversations/${convId}/chat`, {
+        method: "POST",
+        body: JSON.stringify({ query }),
+      }),
   },
 };
 
