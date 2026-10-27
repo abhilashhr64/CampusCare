@@ -43,8 +43,15 @@ import {
   LogOut,
   LogIn,
   UserCheck,
+  MapPin,
+  Printer,
+  Camera,
+  Scan,
 } from "lucide-react";
 import { api } from "@/shared/api/client";
+import { FacilityQrSuiteModal } from "@/features/facilities/FacilityQrSuiteModal";
+import { IncidentDossierModal, IncidentDossierRecord } from "@/features/facilities/IncidentDossierModal";
+import { CampusFacilityMap } from "@/features/facilities/CampusFacilityMap";
 import { calculateAttendanceWhatIf, AttendanceWhatIfResult } from "@/features/attendance/whatIfCalculator";
 import {
   queueAttendanceOperation,
@@ -81,7 +88,7 @@ const GoogleGIcon = () => (
   </svg>
 );
 
-type Persona = "STUDENT" | "LECTURER" | "DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "WHAT_IF" | "SECURITY_RLS" | "CAMPUS_AI";
+type Persona = "STUDENT" | "LECTURER" | "DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "WHAT_IF" | "SECURITY_RLS" | "CAMPUS_AI" | "CAMPUS_MAP";
 
 export default function CampusCarePortal() {
   // Authentication & Dashboard Segregation State
@@ -100,8 +107,12 @@ export default function CampusCarePortal() {
   });
 
   const [activeDashboard, setActiveDashboard] = useState<"USER" | "ADMIN">("USER");
-  const [userTab, setUserTab] = useState<"STUDENT" | "WHAT_IF" | "CAMPUS_AI" | "GRIEVANCES" | "FEEDBACK" | "OFFLINE_SYNC">("STUDENT");
-  const [adminTab, setAdminTab] = useState<"DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "SLA_RADAR" | "DUPLICATES" | "KNOWLEDGE" | "SECURITY_RLS">("DEPARTMENT_ADMIN");
+  const [userTab, setUserTab] = useState<"STUDENT" | "WHAT_IF" | "CAMPUS_AI" | "GRIEVANCES" | "FEEDBACK" | "CAMPUS_MAP" | "OFFLINE_SYNC">("STUDENT");
+  const [adminTab, setAdminTab] = useState<"DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "SLA_RADAR" | "DUPLICATES" | "KNOWLEDGE" | "SECURITY_RLS" | "CAMPUS_MAP">("DEPARTMENT_ADMIN");
+
+  // Real-World Campus Facility QR & Dossier Modals
+  const [showQrSuiteModal, setShowQrSuiteModal] = useState<boolean>(false);
+  const [selectedDossierComplaint, setSelectedDossierComplaint] = useState<IncidentDossierRecord | null>(null);
 
   const [showGoogleLoginModal, setShowGoogleLoginModal] = useState<boolean>(false);
   const [googleEmailInput, setGoogleEmailInput] = useState<string>("");
@@ -808,6 +819,8 @@ export default function CampusCarePortal() {
       setActivePersona("CAMPUS_AI");
     } else if (tab === "OFFLINE_SYNC") {
       setActivePersona("LECTURER");
+    } else if (tab === "CAMPUS_MAP") {
+      setActivePersona("CAMPUS_MAP");
     }
   };
 
@@ -821,6 +834,8 @@ export default function CampusCarePortal() {
       setActivePersona("CAMPUS_AI");
     } else if (tab === "SECURITY_RLS") {
       setActivePersona("SECURITY_RLS");
+    } else if (tab === "CAMPUS_MAP") {
+      setActivePersona("CAMPUS_MAP");
     }
   };
 
@@ -987,6 +1002,17 @@ export default function CampusCarePortal() {
                 Anonymous Feedback (k≥5)
               </button>
               <button
+                onClick={() => handleUserTabSelect("CAMPUS_MAP")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  userTab === "CAMPUS_MAP"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <MapPin className="w-4 h-4 text-indigo-400" />
+                Campus Map & Facilities
+              </button>
+              <button
                 onClick={() => handleUserTabSelect("OFFLINE_SYNC")}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
                   userTab === "OFFLINE_SYNC"
@@ -1032,6 +1058,17 @@ export default function CampusCarePortal() {
               >
                 <Network className="w-4 h-4 text-amber-400" />
                 Duplicate Grievance Clusters
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("CAMPUS_MAP")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "CAMPUS_MAP"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <MapPin className="w-4 h-4 text-indigo-400" />
+                Facility Telemetry Map
               </button>
               <button
                 onClick={() => handleAdminTabSelect("COLLEGE_ADMIN")}
@@ -1262,6 +1299,13 @@ export default function CampusCarePortal() {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
+                    onClick={() => setShowQrSuiteModal(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white flex items-center gap-1.5 transition-all shadow-sm"
+                  >
+                    <Scan className="w-4 h-4 text-sky-400" />
+                    <span>Scan / Print QR Label</span>
+                  </button>
+                  <button
                     onClick={() => setShowComplaintModal(true)}
                     className="px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
                   >
@@ -1304,7 +1348,17 @@ export default function CampusCarePortal() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
+                      {/* Official Incident Dossier Button */}
+                      <button
+                        onClick={() => setSelectedDossierComplaint(c)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/90 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/80 transition-colors flex items-center gap-1.5 shadow-sm"
+                        title="View official verified incident dossier certificate"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Dossier</span>
+                      </button>
+
                       <span
                         className={`text-xs font-bold px-3 py-1 rounded-full ${
                           c.status === "CLOSED"
@@ -2697,6 +2751,20 @@ export default function CampusCarePortal() {
             </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* PERSONA 8: CAMPUS MAP & FACILITY STATUS VISUALIZER                         */}
+        {/* ========================================================================= */}
+        {activePersona === "CAMPUS_MAP" && (
+          <CampusFacilityMap
+            onOpenGrievanceWithTag={(tag, cat) => {
+              setComplaintLocation(tag);
+              setComplaintCategory(cat);
+              setShowComplaintModal(true);
+            }}
+            onOpenQrSuite={() => setShowQrSuiteModal(true)}
+          />
+        )}
       {/* ========================================================================= */}
       {/* Interactive Modals: Complaints & Anonymous Feedback                       */}
       {/* ========================================================================= */}
@@ -3272,6 +3340,24 @@ export default function CampusCarePortal() {
           </div>
         </div>
       )}
+
+      {/* Interactive Facility QR Code Suite Modal */}
+      <FacilityQrSuiteModal
+        isOpen={showQrSuiteModal}
+        onClose={() => setShowQrSuiteModal(false)}
+        onSelectFacilityForGrievance={(tag, cat) => {
+          setComplaintLocation(tag);
+          setComplaintCategory(cat);
+          setShowComplaintModal(true);
+        }}
+      />
+
+      {/* Official Institutional Incident Dossier Modal */}
+      <IncidentDossierModal
+        complaint={selectedDossierComplaint}
+        isOpen={selectedDossierComplaint !== null}
+        onClose={() => setSelectedDossierComplaint(null)}
+      />
       </main>
 
       {/* Footer */}

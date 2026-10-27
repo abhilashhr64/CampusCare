@@ -1,0 +1,65 @@
+# CampusCare AI — Turnkey Render Blueprint
+# Multi-Service Architecture with PostgreSQL, FastAPI Backend, and Next.js Frontend
+
+services:
+  # 1. FastAPI Core Backend Service
+  - type: web
+    name: campuscare-backend
+    env: python
+    region: oregon
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/system/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: DB_MIGRATOR_URL
+        fromDatabase:
+          name: campuscare-postgres
+          property: connectionString
+      - key: DB_APP_URL
+        fromDatabase:
+          name: campuscare-postgres
+          property: connectionString
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: campuscare-frontend
+          property: host
+      - key: AI_ENABLED
+        value: "true"
+      - key: AI_PROVIDER
+        value: "mock"
+
+  # 2. Next.js 16 Web Portal Frontend
+  - type: web
+    name: campuscare-frontend
+    env: node
+    region: oregon
+    plan: starter
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: campuscare-backend
+          property: host
+
+databases:
+  # 3. Dedicated Managed PostgreSQL 16
+  - name: campuscare-postgres
+    region: oregon
+    plan: starter
+    databaseName: campuscare
+    user: campuscare_admin
