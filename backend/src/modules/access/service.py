@@ -36,6 +36,22 @@ class RoleGrantResponse(BaseModel):
 
 class AccessService:
     @staticmethod
+    def get_user_active_roles(db: Session, college_id: uuid.UUID, user_id: uuid.UUID) -> List[str]:
+        """Returns the list of currently active granted role names for a user (Rule AZ-5)."""
+        set_tenant_context(db, college_id=college_id)
+        now = datetime.datetime.now(timezone.utc)
+        stmt = (
+            select(RoleGrant.role)
+            .where(
+                RoleGrant.college_id == college_id,
+                RoleGrant.user_id == user_id,
+                RoleGrant.is_revoked == False,
+                (RoleGrant.expires_at == None) | (RoleGrant.expires_at > now),
+            )
+        )
+        return list(db.scalars(stmt).all())
+
+    @staticmethod
     def get_role_grants_for_college(db: Session, college_id: uuid.UUID) -> List[RoleGrant]:
         set_tenant_context(db, college_id=college_id)
         stmt = (

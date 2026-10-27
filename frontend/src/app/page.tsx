@@ -40,6 +40,9 @@ import {
   Network,
   Bell,
   Percent,
+  LogOut,
+  LogIn,
+  UserCheck,
 } from "lucide-react";
 import { api } from "@/shared/api/client";
 import { calculateAttendanceWhatIf, AttendanceWhatIfResult } from "@/features/attendance/whatIfCalculator";
@@ -57,9 +60,55 @@ import {
   OfflineIndicator,
 } from "@/shared/ui/States";
 
+const GoogleGIcon = () => (
+  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.66-5.17 3.66-9.12z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.27 21.43 7.35 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.13z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.57 1.25 6.58l4.03 3.13c.95-2.83 3.6-4.96 6.72-4.96z"
+    />
+  </svg>
+);
+
 type Persona = "STUDENT" | "LECTURER" | "DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "WHAT_IF" | "SECURITY_RLS" | "CAMPUS_AI";
 
 export default function CampusCarePortal() {
+  // Authentication & Dashboard Segregation State
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    email: string;
+    full_name: string;
+    roles: string[];
+    is_email_verified: boolean;
+  }>({
+    id: "pilot-student-1",
+    email: "aarav.sharma@apex.edu",
+    full_name: "Aarav Sharma",
+    roles: ["STUDENT"],
+    is_email_verified: true,
+  });
+
+  const [activeDashboard, setActiveDashboard] = useState<"USER" | "ADMIN">("USER");
+  const [userTab, setUserTab] = useState<"STUDENT" | "WHAT_IF" | "CAMPUS_AI" | "GRIEVANCES" | "FEEDBACK" | "OFFLINE_SYNC">("STUDENT");
+  const [adminTab, setAdminTab] = useState<"DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "SLA_RADAR" | "DUPLICATES" | "KNOWLEDGE" | "SECURITY_RLS">("DEPARTMENT_ADMIN");
+
+  const [showGoogleLoginModal, setShowGoogleLoginModal] = useState<boolean>(false);
+  const [googleEmailInput, setGoogleEmailInput] = useState<string>("");
+  const [googleDomainError, setGoogleDomainError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+  const [showAccessDeniedModal, setShowAccessDeniedModal] = useState<boolean>(false);
+
   const [activePersona, setActivePersona] = useState<Persona>("STUDENT");
   const [activeTenant, setActiveTenant] = useState<"APEX" | "HORIZON">("APEX");
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -673,12 +722,115 @@ export default function CampusCarePortal() {
     setTimeout(() => setNotificationMsg(null), 5000);
   };
 
+  const handleGoogleCollegeLogin = async (emailToLogin: string, nameToLogin?: string) => {
+    setGoogleDomainError(null);
+    const email = emailToLogin.trim().toLowerCase();
+    const parts = email.split("@");
+    if (parts.length !== 2) {
+      setGoogleDomainError("Please enter a valid institutional email address.");
+      return;
+    }
+
+    const domain = parts[1];
+    const personalDomains = ["gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "hotmail.com", "outlook.com", "icloud.com"];
+    if (personalDomains.includes(domain)) {
+      setGoogleDomainError(
+        `Institutional Security Rejection: '${email}' is a personal email address. Under college governance, you must sign in with your official college mail ID (e.g. @apex.edu or institutional domain).`
+      );
+      return;
+    }
+
+    setIsLoggingIn(true);
+    try {
+      const res = await api.auth.googleLogin({
+        email: email,
+        full_name: nameToLogin || parts[0].replace(".", " ").toUpperCase(),
+      });
+
+      setCurrentUser({
+        id: res.user.id,
+        email: res.user.email,
+        full_name: res.user.full_name,
+        roles: res.user.roles,
+        is_email_verified: res.user.is_email_verified,
+      });
+
+      if (res.dashboard_type === "ADMIN") {
+        setActiveDashboard("ADMIN");
+        setActivePersona("DEPARTMENT_ADMIN");
+        setAdminTab("DEPARTMENT_ADMIN");
+        setNotificationMsg(`Welcome, ${res.user.full_name}! Authenticated via Google College SSO. Accessing Admin Dashboard.`);
+      } else {
+        setActiveDashboard("USER");
+        setActivePersona("STUDENT");
+        setUserTab("STUDENT");
+        setNotificationMsg(`Welcome, ${res.user.full_name}! Authenticated via Google College SSO. Accessing User Dashboard.`);
+      }
+
+      setShowGoogleLoginModal(false);
+      setGoogleEmailInput("");
+    } catch (err: any) {
+      setGoogleDomainError(err.message || "Failed to authenticate via Google College SSO.");
+    } finally {
+      setIsLoggingIn(false);
+      setTimeout(() => setNotificationMsg(null), 6000);
+    }
+  };
+
+  const handleSwitchDashboard = (target: "USER" | "ADMIN") => {
+    if (target === "ADMIN") {
+      const isAdmin = currentUser.roles.some((r) => r === "COLLEGE_ADMIN" || r === "DEPARTMENT_ADMIN");
+      if (!isAdmin) {
+        setShowAccessDeniedModal(true);
+        return;
+      }
+      setActiveDashboard("ADMIN");
+      setActivePersona(adminTab === "COLLEGE_ADMIN" ? "COLLEGE_ADMIN" : "DEPARTMENT_ADMIN");
+      setNotificationMsg("Switched to Admin Dashboard (Department & College Governance).");
+    } else {
+      setActiveDashboard("USER");
+      if (userTab === "WHAT_IF") setActivePersona("WHAT_IF");
+      else if (userTab === "CAMPUS_AI") setActivePersona("CAMPUS_AI");
+      else if (userTab === "OFFLINE_SYNC") setActivePersona("LECTURER");
+      else setActivePersona("STUDENT");
+      setNotificationMsg("Switched to User Dashboard (Student & Faculty Services).");
+    }
+    setTimeout(() => setNotificationMsg(null), 4000);
+  };
+
+  const handleUserTabSelect = (tab: typeof userTab) => {
+    setUserTab(tab);
+    if (tab === "STUDENT" || tab === "GRIEVANCES" || tab === "FEEDBACK") {
+      setActivePersona("STUDENT");
+    } else if (tab === "WHAT_IF") {
+      setActivePersona("WHAT_IF");
+    } else if (tab === "CAMPUS_AI") {
+      setActivePersona("CAMPUS_AI");
+    } else if (tab === "OFFLINE_SYNC") {
+      setActivePersona("LECTURER");
+    }
+  };
+
+  const handleAdminTabSelect = (tab: typeof adminTab) => {
+    setAdminTab(tab);
+    if (tab === "DEPARTMENT_ADMIN" || tab === "SLA_RADAR" || tab === "DUPLICATES") {
+      setActivePersona("DEPARTMENT_ADMIN");
+    } else if (tab === "COLLEGE_ADMIN") {
+      setActivePersona("COLLEGE_ADMIN");
+    } else if (tab === "KNOWLEDGE") {
+      setActivePersona("CAMPUS_AI");
+    } else if (tab === "SECURITY_RLS") {
+      setActivePersona("SECURITY_RLS");
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#090d16] text-slate-100">
       {/* Platform Top Header */}
       <header className="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
               <Shield className="w-5 h-5 text-white" />
             </div>
@@ -686,51 +838,90 @@ export default function CampusCarePortal() {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-base tracking-tight text-white">CampusCare AI</span>
                 <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                  v2 Enterprise
+                  Enterprise
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 hidden sm:block">
-                Multi-Tenant Governance & Verified Services
+                Apex Institute of Tech (<span className="text-sky-400 font-mono">apex.edu</span>)
               </p>
             </div>
           </div>
 
-          {/* Right Controls: Tenant Switcher, Network Mode, Offline Chip */}
-          <div className="flex items-center gap-3">
-            {/* Tenant Switcher */}
-            <div className="flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-1 text-xs">
-              <button
-                onClick={() => setActiveTenant("APEX")}
-                className={`px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeTenant === "APEX"
-                    ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-                title="Tenant 1: Apex Institute of Technology"
-              >
-                Apex Institute (Tenant 1)
-              </button>
-              <button
-                onClick={() => setActiveTenant("HORIZON")}
-                className={`px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeTenant === "HORIZON"
-                    ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-                title="Tenant 2: Horizon Polytechnic"
-              >
-                Horizon Poly (Tenant 2)
-              </button>
-            </div>
+          {/* Center: Dedicated Dashboard Switcher (User vs Admin) */}
+          <div className="flex items-center bg-slate-900/90 border border-slate-800/90 rounded-xl p-1 gap-1 shadow-inner">
+            <button
+              onClick={() => handleSwitchDashboard("USER")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeDashboard === "USER"
+                  ? "bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/25"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>User Dashboard</span>
+              {activeDashboard === "USER" && (
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-200 animate-pulse" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleSwitchDashboard("ADMIN")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeDashboard === "ADMIN"
+                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-md shadow-purple-500/25"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Admin Dashboard</span>
+              {currentUser.roles.some((r) => r.includes("ADMIN")) && (
+                <span className="px-1.5 py-0.2 rounded bg-purple-400/20 text-purple-200 text-[9px] font-bold">
+                  AUTH
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Right Controls: Google SSO User Pill, Network Mode, Offline Chip */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Google College SSO Profile Pill */}
+            <button
+              onClick={() => setShowGoogleLoginModal(true)}
+              className="flex items-center gap-2.5 px-3 py-1 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 transition-all text-xs text-left"
+              title="Click to switch account or sign in with another college mail ID"
+            >
+              <div className="relative">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs">
+                  {currentUser.full_name.charAt(0)}
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow">
+                  <GoogleGIcon />
+                </div>
+              </div>
+              <div className="hidden md:block">
+                <div className="font-semibold text-slate-200 text-[11px] leading-tight flex items-center gap-1.5">
+                  <span>{currentUser.full_name}</span>
+                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 font-mono text-[9px] font-semibold">
+                    {currentUser.roles[0] || "STUDENT"}
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-400 leading-tight">
+                  {currentUser.email}
+                </div>
+              </div>
+              <span className="text-[10px] text-sky-400 hover:text-sky-300 ml-1 font-medium hidden sm:inline">
+                Switch
+              </span>
+            </button>
 
             {/* Network simulator button */}
             <button
               onClick={() => setIsOnline(!isOnline)}
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 transition-colors"
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 transition-colors"
               title="Toggle network connectivity simulation"
             >
               {isOnline ? <Wifi className="w-3.5 h-3.5 text-emerald-400" /> : <WifiOff className="w-3.5 h-3.5 text-amber-400" />}
-              {isOnline ? "Network: Online" : "Simulate Offline"}
+              <span>{isOnline ? "Online" : "Offline"}</span>
             </button>
 
             {/* Offline Outbox Status Chip */}
@@ -738,85 +929,145 @@ export default function CampusCarePortal() {
           </div>
         </div>
 
-        {/* Persona Navigation Tabs */}
+        {/* Dynamic Sub-Navigation Bar based on Active Dashboard */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-2 py-2 border-t border-slate-800/40 text-xs">
-          <button
-            onClick={() => setActivePersona("STUDENT")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "STUDENT"
-                ? "bg-sky-500 text-white shadow-md shadow-sky-500/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <GraduationCap className="w-4 h-4" />
-            Student Persona
-          </button>
-          <button
-            onClick={() => setActivePersona("LECTURER")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "LECTURER"
-                ? "bg-sky-500 text-white shadow-md shadow-sky-500/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Lecturer Persona
-          </button>
-          <button
-            onClick={() => setActivePersona("DEPARTMENT_ADMIN")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "DEPARTMENT_ADMIN"
-                ? "bg-sky-500 text-white shadow-md shadow-sky-500/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            Department Admin
-          </button>
-          <button
-            onClick={() => setActivePersona("COLLEGE_ADMIN")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "COLLEGE_ADMIN"
-                ? "bg-sky-500 text-white shadow-md shadow-sky-500/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Shield className="w-4 h-4" />
-            College Admin & Audit
-          </button>
-          <button
-            onClick={() => setActivePersona("WHAT_IF")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "WHAT_IF"
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Calculator className="w-4 h-4 text-emerald-400" />
-            Attendance What-If Engine
-          </button>
-          <button
-            onClick={() => setActivePersona("SECURITY_RLS")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "SECURITY_RLS"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Database className="w-4 h-4 text-indigo-400" />
-            PostgreSQL RLS Inspector
-          </button>
-          <button
-            onClick={() => setActivePersona("CAMPUS_AI")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activePersona === "CAMPUS_AI"
-                ? "bg-amber-600 text-white shadow-md shadow-amber-600/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            Campus AI Assistant & RAG
-          </button>
+          {activeDashboard === "USER" ? (
+            <>
+              <button
+                onClick={() => handleUserTabSelect("STUDENT")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  userTab === "STUDENT"
+                    ? "bg-sky-500 text-white shadow-md shadow-sky-500/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                Student Hub
+              </button>
+              <button
+                onClick={() => handleUserTabSelect("WHAT_IF")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  userTab === "WHAT_IF"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Calculator className="w-4 h-4 text-emerald-400" />
+                Attendance What-If Engine
+              </button>
+              <button
+                onClick={() => handleUserTabSelect("CAMPUS_AI")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  userTab === "CAMPUS_AI"
+                    ? "bg-amber-600 text-white shadow-md shadow-amber-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                Campus AI Assistant
+              </button>
+              <button
+                onClick={() => {
+                  handleUserTabSelect("STUDENT");
+                  setShowComplaintModal(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all"
+              >
+                <QrCode className="w-4 h-4 text-sky-400" />
+                Location Grievance (QR)
+              </button>
+              <button
+                onClick={() => {
+                  handleUserTabSelect("STUDENT");
+                  setShowFeedbackModal(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all"
+              >
+                <Star className="w-4 h-4 text-amber-400" />
+                Anonymous Feedback (k≥5)
+              </button>
+              <button
+                onClick={() => handleUserTabSelect("OFFLINE_SYNC")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  userTab === "OFFLINE_SYNC"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Users className="w-4 h-4 text-indigo-400" />
+                Faculty Attendance Roster
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => handleAdminTabSelect("DEPARTMENT_ADMIN")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "DEPARTMENT_ADMIN"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                Department Admin Queue
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("SLA_RADAR")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "SLA_RADAR"
+                    ? "bg-rose-600 text-white shadow-md shadow-rose-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4 text-rose-400" />
+                Live SLA Risk Radar
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("DUPLICATES")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "DUPLICATES"
+                    ? "bg-amber-600 text-white shadow-md shadow-amber-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Network className="w-4 h-4 text-amber-400" />
+                Duplicate Grievance Clusters
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("COLLEGE_ADMIN")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "COLLEGE_ADMIN"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Shield className="w-4 h-4 text-indigo-400" />
+                Role Approvals & Audit Ledger
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("KNOWLEDGE")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "KNOWLEDGE"
+                    ? "bg-sky-600 text-white shadow-md shadow-sky-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <BookOpen className="w-4 h-4 text-sky-400" />
+                Institutional Knowledge Grounding
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("SECURITY_RLS")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "SECURITY_RLS"
+                    ? "bg-teal-600 text-white shadow-md shadow-teal-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Database className="w-4 h-4 text-teal-400" />
+                PostgreSQL Forced RLS Inspector
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -2768,6 +3019,256 @@ export default function CampusCarePortal() {
                 Send
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google College Sign-In Modal */}
+      {showGoogleLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-6 sm:p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-white mx-auto flex items-center justify-center shadow-lg shadow-sky-500/10">
+                <svg className="w-8 h-8" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.66-5.17 3.66-9.12z" />
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.27 21.43 7.35 24 12 24z" />
+                  <path fill="#FBBC05" d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.13z" />
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.57 1.25 6.58l4.03 3.13c.95-2.83 3.6-4.96 6.72-4.96z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-white tracking-tight">
+                Sign in with Google
+              </h3>
+              <p className="text-xs text-slate-400">
+                Institutional Single Sign-On (SSO) with your College Mail ID
+              </p>
+            </div>
+
+            {/* Institutional Security Policy Notice */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed space-y-1">
+              <div className="font-semibold flex items-center gap-1.5 text-amber-200">
+                <Shield className="w-3.5 h-3.5" />
+                <span>College Domain Policy (Rule NR-5)</span>
+              </div>
+              <p className="text-[11px] text-amber-300/80">
+                Personal emails (<span className="font-mono text-amber-200">@gmail.com</span>, <span className="font-mono text-amber-200">@yahoo.com</span>) are strictly disallowed. You must authenticate with an institutional email (e.g. <span className="font-mono text-amber-200">@apex.edu</span>).
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {googleDomainError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{googleDomainError}</span>
+              </div>
+            )}
+
+            {/* 1-Click Fast Institutional Persona Access */}
+            <div className="space-y-2">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Select Verified Institutional Account:
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleGoogleCollegeLogin("aarav.sharma@apex.edu", "Aarav Sharma")}
+                  disabled={isLoggingIn}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">
+                      AS
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
+                        Aarav Sharma
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-400">
+                        aarav.sharma@apex.edu
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      User Dashboard (Student)
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleGoogleCollegeLogin("prof.rao@apex.edu", "Prof. Raghav Rao")}
+                  disabled={isLoggingIn}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs">
+                      RR
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
+                        Prof. Raghav Rao
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-400">
+                        prof.rao@apex.edu
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      User Dashboard (Faculty)
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleGoogleCollegeLogin("admin@apex.edu", "Dr. S. K. Raman")}
+                  disabled={isLoggingIn}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs">
+                      SK
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
+                        Dr. S. K. Raman (Director)
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-400">
+                        admin@apex.edu
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Admin Dashboard
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleGoogleCollegeLogin("cse.admin@apex.edu", "Prof. Sunita Reddy")}
+                  disabled={isLoggingIn}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-pink-500/50 hover:bg-pink-500/5 transition-all text-left group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold text-xs">
+                      SR
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
+                        Prof. Sunita Reddy (HOD CSE)
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-400">
+                        cse.admin@apex.edu
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                      Admin Dashboard
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Custom College Email Input */}
+            <div className="space-y-3 pt-2 border-t border-slate-800">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Or Sign In with Any College Mail ID:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="e.g. yourname@apex.edu"
+                  value={googleEmailInput}
+                  onChange={(e) => setGoogleEmailInput(e.target.value)}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleGoogleCollegeLogin(googleEmailInput)}
+                  disabled={isLoggingIn || !googleEmailInput.trim()}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-900 hover:bg-slate-200 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  {isLoggingIn ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <GoogleGIcon />}
+                  <span>Sign In</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGoogleLoginModal(false);
+                  setGoogleDomainError(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Access Denied Security Modal (Rule NR-5) */}
+      {showAccessDeniedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-rose-500/40 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-6 sm:p-8 space-y-5">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
+              <Lock className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                Admin Console Access Restricted
+              </h3>
+              <p className="text-xs text-rose-300 font-mono">
+                Security Policy Rule NR-5 Enforced
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/20 text-xs text-slate-300 leading-relaxed space-y-2">
+              <p>
+                You are currently signed in as <span className="font-semibold text-white">{currentUser.full_name}</span> (<span className="font-mono text-sky-300">{currentUser.email}</span>) with <span className="font-bold text-amber-300">{currentUser.roles.join(", ")}</span> permissions.
+              </p>
+              <p className="text-slate-400 text-[11px]">
+                <strong>Rule NR-5:</strong> A verified email address alone never grants lecturer, department admin or college admin privileges. Administrative console access requires an explicit role approval by an institution authority.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <div className="text-[11px] font-semibold text-slate-400">
+                To access the Admin Console, switch to an approved admin account:
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAccessDeniedModal(false);
+                  handleGoogleCollegeLogin("admin@apex.edu", "Dr. S. K. Raman");
+                }}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2"
+              >
+                <Shield className="w-4 h-4" />
+                Sign In as College Admin (admin@apex.edu)
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAccessDeniedModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+              >
+                Return to User Dashboard
+              </button>
+            </div>
           </div>
         </div>
       )}

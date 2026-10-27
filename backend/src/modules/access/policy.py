@@ -27,6 +27,7 @@ PUBLIC_ACTIONS: Set[str] = {
     "auth:verify_email",
     "auth:verify_code",
     "auth:signup_student",
+    "auth:google",
     "system:health",
 }
 

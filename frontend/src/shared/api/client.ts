@@ -26,6 +26,13 @@ export interface TokenResponse {
   user: User;
 }
 
+export interface GoogleLoginResponse {
+  session_token: string;
+  expires_at: string;
+  dashboard_type: "ADMIN" | "USER";
+  user: User;
+}
+
 export interface RoleGrant {
   id: string;
   college_id: string;
@@ -317,6 +324,11 @@ export const api = {
     logout: () =>
       request<{ message: string }>("/auth/logout", {
         method: "POST",
+      }),
+    googleLogin: (data: { email: string; full_name?: string; credential?: string; college_id?: string }) =>
+      request<GoogleLoginResponse>("/auth/google", {
+        method: "POST",
+        body: JSON.stringify(data),
       }),
     getMe: () => request<User>("/auth/me"),
   },

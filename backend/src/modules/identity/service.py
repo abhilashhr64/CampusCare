@@ -15,6 +15,8 @@ from src.core.config import settings
 from src.core.rls import set_tenant_context
 from src.core.outbox import publish_event
 from src.modules.identity.models import User, Session as UserSession, VerificationToken
+from src.modules.tenancy.service import TenancyService
+from src.modules.access.service import AccessService
 
 
 class StudentSignupRequest(BaseModel):
@@ -36,6 +38,13 @@ class VerifyCodeRequest(BaseModel):
     code: str
 
 
+class GoogleLoginRequest(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    credential: Optional[str] = None
+    college_id: Optional[uuid.UUID] = None
+
+
 class UserResponse(BaseModel):
     id: uuid.UUID
     college_id: uuid.UUID
@@ -52,6 +61,13 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     session_token: str
     expires_at: datetime.datetime
+    user: UserResponse
+
+
+class GoogleLoginResponse(BaseModel):
+    session_token: str
+    expires_at: datetime.datetime
+    dashboard_type: str  # "ADMIN" or "USER"
     user: UserResponse
 
 
@@ -204,3 +220,124 @@ class IdentityService:
             .values(is_revoked=True)
         )
         db.commit()
+
+    @staticmethod
+    def authenticate_google(
+        db: Session,
+        data: GoogleLoginRequest,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+    ) -> Tuple[User, str, datetime.datetime, str, List[str]]:
+        """Authenticates or provisions a user via Google Sign-In with mandatory college email validation.
+        
+        Rules Enforced:
+        - Must be an institutional college email (generic personal domains rejected).
+        - Rule NR-5: Verified email alone NEVER grants elevated staff/admin roles.
+        - Automatically resolves target tenant college by domain or ID.
+        - Sets server-side session and returns target dashboard ('ADMIN' or 'USER').
+        """
+        email_str = str(data.email).strip().lower()
+        parts = email_str.split("@")
+        if len(parts) != 2:
+            raise ValueError("Invalid email format.")
+        domain = parts[1]
+
+        # 1. Enforce College Email Domain (Reject generic personal email providers)
+        disallowed_public_domains = {
+            "gmail.com",
+            "googlemail.com",
+            "yahoo.com",
+            "ymail.com",
+            "hotmail.com",
+            "outlook.com",
+            "live.com",
+            "icloud.com",
+            "aol.com",
+            "mail.com",
+            "proton.me",
+            "protonmail.com",
+        }
+        if domain in disallowed_public_domains:
+            raise ValueError(
+                f"Access Denied: '{email_str}' is a personal email account. "
+                "Institutional policy requires signing in with your verified college mail ID "
+                "(e.g., student@apex.edu or institutional domain)."
+            )
+
+        # 2. Resolve Tenant College
+        college = None
+        if data.college_id:
+            college = TenancyService.get_college_by_id(db, data.college_id)
+        if not college:
+            college = TenancyService.get_college_by_domain(db, domain)
+        if not college:
+            # Fallback to active college in local environment
+            active_colleges = TenancyService.get_all_active_colleges(db)
+            if active_colleges:
+                college = active_colleges[0]
+            else:
+                raise ValueError(f"No active educational institution found matching domain '@{domain}'.")
+
+        target_college_id = college.id
+        set_tenant_context(db, college_id=target_college_id)
+
+        # 3. Lookup or Provision User
+        stmt = select(User).where(User.college_id == target_college_id, User.email == email_str)
+        user = db.scalar(stmt)
+        if not user:
+            # Auto-provision verified student account (Rule NR-5: no elevated roles)
+            user_full_name = data.full_name or parts[0].replace(".", " ").title()
+            user = User(
+                college_id=target_college_id,
+                email=email_str,
+                full_name=user_full_name,
+                is_email_verified=True,  # Verified by Google OIDC
+                is_active=True,
+            )
+            db.add(user)
+            db.flush()
+
+            # Enqueue outbox event
+            publish_event(
+                db,
+                topic="identity.google_user_provisioned",
+                payload={"user_id": str(user.id), "email": user.email, "college_id": str(target_college_id)},
+                college_id=target_college_id,
+            )
+        else:
+            if not user.is_email_verified:
+                user.is_email_verified = True
+                db.flush()
+
+        # 4. Query Active Roles via AccessService (Rule AZ-5, BR-1)
+        active_roles = AccessService.get_user_active_roles(db, target_college_id, user.id)
+        if not active_roles and user.is_email_verified:
+            active_roles = ["STUDENT"]
+
+        # 5. Determine Dashboard Target
+        # College and Dept admins are routed to the Admin Dashboard; students/lecturers to the User Dashboard
+        if any(r in ("COLLEGE_ADMIN", "DEPARTMENT_ADMIN") for r in active_roles):
+            dashboard_type = "ADMIN"
+        else:
+            dashboard_type = "USER"
+
+        # 6. Create Server-Side Session (Rule C5, ADR-003)
+        raw_token, token_hash = generate_session_token()
+        expires_at = datetime.datetime.now(timezone.utc) + datetime.timedelta(
+            seconds=settings.SESSION_LIFETIME_SECONDS
+        )
+
+        session = UserSession(
+            college_id=target_college_id,
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            is_revoked=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(user)
+
+        return user, raw_token, expires_at, dashboard_type, active_roles

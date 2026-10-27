@@ -9,11 +9,71 @@ from src.modules.identity.service import (
     StudentSignupRequest,
     LoginRequest,
     VerifyCodeRequest,
+    GoogleLoginRequest,
+    GoogleLoginResponse,
     TokenResponse,
     UserResponse,
 )
 
 router = APIRouter(prefix="/auth", tags=["Identity & Authentication"])
+
+
+@router.post("/google", response_model=GoogleLoginResponse)
+@require_permission("auth:google")
+def google_college_login(
+    data: GoogleLoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_app_db),
+    actor: Actor = Depends(get_current_actor),
+):
+    """Institutional Google Sign-In with mandatory college email domain validation.
+    Returns session token, cookie, and target dashboard ('ADMIN' or 'USER').
+    """
+    decision = authorize(actor, "auth:google")
+    if not decision.allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=decision.reason_code)
+
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    try:
+        user, raw_token, expires_at, dashboard_type, roles = IdentityService.authenticate_google(
+            db,
+            data=data,
+            ip_address=client_ip,
+            user_agent=user_agent,
+        )
+
+        # Set secure httpOnly cookie (Rule C5, ADR-003)
+        response.set_cookie(
+            key=settings.SESSION_COOKIE_NAME,
+            value=raw_token,
+            httponly=settings.SESSION_COOKIE_HTTPONLY,
+            secure=settings.SESSION_COOKIE_SECURE,
+            samesite=settings.SESSION_COOKIE_SAMESITE,
+            max_age=settings.SESSION_LIFETIME_SECONDS,
+        )
+
+        user_resp = UserResponse(
+            id=user.id,
+            college_id=user.college_id,
+            email=user.email,
+            full_name=user.full_name,
+            is_email_verified=user.is_email_verified,
+            is_mfa_enabled=user.is_mfa_enabled,
+            roles=roles,
+            role_scopes={},
+        )
+
+        return GoogleLoginResponse(
+            session_token=raw_token,
+            expires_at=expires_at,
+            dashboard_type=dashboard_type,
+            user=user_resp,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/signup-student", status_code=status.HTTP_201_CREATED)

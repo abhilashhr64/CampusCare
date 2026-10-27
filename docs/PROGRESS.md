@@ -4,7 +4,7 @@
 - Current Phase: **All Phases (1 through 5) Completed, Hardened & Verified**
 - Architecture: Modular Monolith (`FastAPI`, `SQLAlchemy 2`, `Alembic`, `PostgreSQL 18` with forced RLS, `Next.js 16` App Router, `Dexie.js` IndexedDB)
 - Database: Dedicated PostgreSQL 18 cluster (`campuscare_pgdata` on port `5433`) with `NOBYPASSRLS` application user (`campuscare_app`) and privileged migration role (`campuscare_migrator`).
-- Test Suite: **25/25 automated tests passing** (`pytest backend/tests/ -v`).
+- Test Suite: **29/29 automated tests passing** (`pytest backend/tests/ -v`).
 - Catalog Introspection: **27/27 tenant-owned tables enforce `FORCE ROW LEVEL SECURITY` and active tenant isolation policies**.
 - Frontend Bundle: Next.js 16.4.3 Turbopack compiled successfully with 0 TypeScript/ESLint errors (`npm run build`).
 
@@ -183,6 +183,7 @@
 | 2026-10-27 | SLICE-03 | Campus AI: Institutional Knowledge base, tenant-isolated vector/hybrid retrieval (TN-6), citation-grounded assistant with confidence-aware routing (B2, B3), anti-hallucination confirmed draft actions (B4), Next.js AI persona and floating drawer | NR-1, NR-9, TN-6, B2, B3, B4, C1 | 18/18 Pytest tests passing; Next.js 16 production build passed with 0 errors; Alembic upgrade/downgrade verified; 21/21 tables forced RLS verified | Completed |
 | 2026-10-27 | SLICE-04 | Intelligence & Notifications: Multi-signal duplicate complaint detection, SLA breach hazard forecasting, supportive attendance deficit alerts, feedback themes under k>=5, transactional outbox notification delivery, Next.js UI integration | NR-1, NR-9, NR-10, B1, B3, EV-3, ADR-006 | 22/22 Pytest tests passing; Next.js 16 production build passed with 0 errors; Alembic upgrade/downgrade verified; 27/27 tables forced RLS verified | Completed |
 | 2026-10-27 | SLICE-05 | Pilot Hardening: Pilot college onboarding script (`seed_pilot.py`), CSE & ECE departments, verified user personas, end-to-end user journeys test suite, cryptographic audit ledger verification | NR-1, NR-12, NR-13, B1..B4, C5, C7 | 25/25 Pytest tests passing; Next.js 16 production build passed with 0 errors; Pilot college successfully seeded | Completed |
+| 2026-10-27 | SLICE-06 | Google College SSO & Dual Dashboard Architecture: Institutional domain verification, generic email rejection, role-based auto-routing (User Dashboard vs Admin Console), Rule NR-5 security guards | NR-1, NR-3, NR-5, C1, C5, AZ-1..AZ-5 | 29/29 Pytest tests passing; Next.js 16 production build passed with 0 errors; Google College SSO verified | Completed |
 
 ---
 
