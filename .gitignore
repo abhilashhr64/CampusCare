@@ -1,0 +1,33 @@
+# Environments
+.venv/
+env/
+venv/
+ENV/
+*.pyc
+__pycache__/
+
+# Node
+node_modules/
+.next/
+out/
+build/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local data & credentials
+.env
+.env.local
+.env.*.local
+*.log
+*.sqlite3
+.pgdata/
+campuscare_pgdata/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

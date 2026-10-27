@@ -1,0 +1,1109 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CampusCare AI \u2014 Platform Services",
+    "description": "Multi-tenant college services platform with verified identity, row-level security, and audit.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/tenancy/colleges": {
+      "get": {
+        "tags": [
+          "Tenancy"
+        ],
+        "summary": "List Active Colleges",
+        "operationId": "list_active_colleges_api_v1_tenancy_colleges_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CollegeResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Active Colleges Api V1 Tenancy Colleges Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signup-student": {
+      "post": {
+        "tags": [
+          "Identity & Authentication"
+        ],
+        "summary": "Signup Student",
+        "operationId": "signup_student_api_v1_auth_signup_student_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentSignupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-code": {
+      "post": {
+        "tags": [
+          "Identity & Authentication"
+        ],
+        "summary": "Verify Email Code",
+        "operationId": "verify_email_code_api_v1_auth_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Identity & Authentication"
+        ],
+        "summary": "Login",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Identity & Authentication"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Identity & Authentication"
+        ],
+        "summary": "Get Current User Profile",
+        "operationId": "get_current_user_profile_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/grants": {
+      "get": {
+        "tags": [
+          "Access & Role Approvals"
+        ],
+        "summary": "List Role Grants",
+        "operationId": "list_role_grants_api_v1_access_grants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleGrantResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Role Grants Api V1 Access Grants Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access & Role Approvals"
+        ],
+        "summary": "Grant Role",
+        "operationId": "grant_role_api_v1_access_grants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleGrantCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleGrantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/grants/{grant_id}/revoke": {
+      "post": {
+        "tags": [
+          "Access & Role Approvals"
+        ],
+        "summary": "Revoke Role Grant",
+        "operationId": "revoke_role_grant_api_v1_access_grants__grant_id__revoke_post",
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleGrantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/directory/departments": {
+      "get": {
+        "tags": [
+          "Directory & Rosters"
+        ],
+        "summary": "List Departments",
+        "operationId": "list_departments_api_v1_directory_departments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DepartmentResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Departments Api V1 Directory Departments Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Directory & Rosters"
+        ],
+        "summary": "Create Department",
+        "operationId": "create_department_api_v1_directory_departments_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartmentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/directory/courses": {
+      "get": {
+        "tags": [
+          "Directory & Rosters"
+        ],
+        "summary": "List Courses",
+        "operationId": "list_courses_api_v1_directory_courses_get",
+        "parameters": [
+          {
+            "name": "department_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Department Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CourseResponse"
+                  },
+                  "title": "Response List Courses Api V1 Directory Courses Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Directory & Rosters"
+        ],
+        "summary": "Create Course",
+        "operationId": "create_course_api_v1_directory_courses_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/directory/classes": {
+      "get": {
+        "tags": [
+          "Directory & Rosters"
+        ],
+        "summary": "List Classes",
+        "operationId": "list_classes_api_v1_directory_classes_get",
+        "parameters": [
+          {
+            "name": "lecturer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lecturer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassSectionResponse"
+                  },
+                  "title": "Response List Classes Api V1 Directory Classes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health Check",
+        "description": "System health check endpoint (Rule NR-8).",
+        "operationId": "health_check_api_v1_system_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClassSectionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "course_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Course Id"
+          },
+          "lecturer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lecturer Id"
+          },
+          "section_name": {
+            "type": "string",
+            "title": "Section Name"
+          },
+          "semester": {
+            "type": "integer",
+            "title": "Semester"
+          },
+          "academic_year": {
+            "type": "string",
+            "title": "Academic Year"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "course_id",
+          "lecturer_id",
+          "section_name",
+          "semester",
+          "academic_year",
+          "created_at"
+        ],
+        "title": "ClassSectionResponse"
+      },
+      "CollegeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "settings": {
+            "type": "object",
+            "title": "Settings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "code",
+          "domain",
+          "is_active",
+          "settings"
+        ],
+        "title": "CollegeResponse"
+      },
+      "CourseCreate": {
+        "properties": {
+          "department_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Department Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits",
+            "default": 3
+          }
+        },
+        "type": "object",
+        "required": [
+          "department_id",
+          "code",
+          "title"
+        ],
+        "title": "CourseCreate"
+      },
+      "CourseResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "department_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Department Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "credits": {
+            "type": "integer",
+            "title": "Credits"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "department_id",
+          "code",
+          "title",
+          "credits",
+          "created_at"
+        ],
+        "title": "CourseResponse"
+      },
+      "DepartmentCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "DepartmentCreate"
+      },
+      "DepartmentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "code",
+          "name",
+          "created_at"
+        ],
+        "title": "DepartmentResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LoginRequest": {
+        "properties": {
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "college_id",
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "RevokeRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RevokeRequest"
+      },
+      "RoleGrantCreate": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "scope": {
+            "type": "object",
+            "title": "Scope",
+            "default": {}
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "role",
+          "reason"
+        ],
+        "title": "RoleGrantCreate"
+      },
+      "RoleGrantResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "scope": {
+            "type": "object",
+            "title": "Scope"
+          },
+          "granted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted By"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "is_revoked": {
+            "type": "boolean",
+            "title": "Is Revoked"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "user_id",
+          "role",
+          "scope",
+          "granted_by",
+          "reason",
+          "expires_at",
+          "is_revoked",
+          "created_at"
+        ],
+        "title": "RoleGrantResponse"
+      },
+      "StudentSignupRequest": {
+        "properties": {
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "college_id",
+          "email",
+          "full_name",
+          "password"
+        ],
+        "title": "StudentSignupRequest"
+      },
+      "TokenResponse": {
+        "properties": {
+          "session_token": {
+            "type": "string",
+            "title": "Session Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_token",
+          "expires_at",
+          "user"
+        ],
+        "title": "TokenResponse"
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "is_email_verified": {
+            "type": "boolean",
+            "title": "Is Email Verified"
+          },
+          "is_mfa_enabled": {
+            "type": "boolean",
+            "title": "Is Mfa Enabled"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles",
+            "default": []
+          },
+          "role_scopes": {
+            "type": "object",
+            "title": "Role Scopes",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "email",
+          "full_name",
+          "is_email_verified",
+          "is_mfa_enabled"
+        ],
+        "title": "UserResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerifyCodeRequest": {
+        "properties": {
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "college_id",
+          "email",
+          "code"
+        ],
+        "title": "VerifyCodeRequest"
+      }
+    }
+  }
+}
