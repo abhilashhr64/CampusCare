@@ -31,3 +31,15 @@ campuscare_pgdata/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Android & Mobile
+*.apk
+*.aab
+frontend/out/
+.gradle/
+local.properties
+**/android/app/build/
+**/android/build/
+**/android/.gradle/
+**/android/local.properties
+

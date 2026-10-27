@@ -1,0 +1,9 @@
+{
+  "appId": "edu.apex.campuscare",
+  "appName": "CampusCare AI",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  }
+}
