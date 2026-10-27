@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:18-bookworm
+    container_name: campuscare_db
+    environment:
+      POSTGRES_DB: campuscare
+      POSTGRES_USER: campuscare_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SuperSecretAdminPass123!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/src/scripts/init_db_roles.sql:/docker-entrypoint-initdb.d/01_roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campuscare_admin -d campuscare"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - campuscare-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: campuscare_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://campuscare_app:${APP_PASSWORD:-CampusCareAppSecurePass2026!}@db:5432/campuscare
+      MIGRATION_DATABASE_URL: postgresql+psycopg://campuscare_migrator:${MIGRATOR_PASSWORD:-CampusCareMigrateSecurePass2026!}@db:5432/campuscare
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-campuscare_production_jwt_cookie_secret_key_2026_xyz}
+      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+      ENVIRONMENT: production
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "alembic upgrade head &&
+             python src/scripts/seed_pilot.py &&
+             uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/system/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - campuscare-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: campuscare_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    networks:
+      - campuscare-net
+
+networks:
+  campuscare-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
