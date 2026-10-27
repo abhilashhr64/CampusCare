@@ -34,11 +34,11 @@ CAMPUSCARE-AI/
 ├── backend/
 │   ├── src/
 │   │   ├── core/         # Config, Database, Forced RLS, Security, Outbox, Boundaries
-│   │   ├── modules/      # Tenancy, Identity, Access, Directory, Attendance, Audit
+│   │   ├── modules/      # Tenancy, Identity, Access, Directory, Attendance, Complaints, Feedback, Notifications, Knowledge, Assistant, Analytics, Audit
 │   │   ├── api/          # Routers and dependencies
 │   │   └── main.py       # FastAPI application
 │   ├── alembic/          # Version-controlled migrations with RLS policies
-│   └── tests/            # Automated test suite (RLS, Boundaries, Auth Matrix, What-If)
+│   └── tests/            # Automated test suite (25/25 tests: RLS, Boundaries, Auth Matrix, Workflows, AI, Analytics, Pilot)
 ├── frontend/
 │   ├── src/
 │   │   ├── app/          # Next.js 15 App Router pages and layout
@@ -50,7 +50,8 @@ CAMPUSCARE-AI/
     ├── PROGRESS.md       # Release gates & execution progress
     ├── ASSUMPTIONS.md    # Architectural choices & defaults
     ├── DEPENDENCIES.md   # Pinned dependencies & justifications
-    └── adr/              # Architecture Decision Records (001 - 005)
+    ├── reports/          # Machine-generated CI test execution reports
+    └── adr/              # Architecture Decision Records (001 - 006)
 ```
 
 ---
@@ -66,7 +67,10 @@ cp .env.example .env
 cd backend
 .\.venv\Scripts\alembic upgrade head
 
-# Run backend tests (10/10 automated tests)
+# Seed Pilot Environment (Apex Institute of Technology, CSE/ECE depts, verified users)
+.\.venv\Scripts\python src/scripts/seed_pilot.py
+
+# Run backend tests (25/25 automated tests)
 .\.venv\Scripts\pytest tests/ -v
 
 # Start FastAPI server (Port 8000)
