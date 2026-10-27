@@ -53,6 +53,17 @@ jobs:
           MIGRATION_DATABASE_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
         run: |
           alembic upgrade head
+          PGPASSWORD="CampusCareMigrateSecurePass2026!" psql -h localhost -U campuscare_migrator -d campuscare -c "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO campuscare_app; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO campuscare_app;"
+
+      - name: Seed Pilot Environment
+        working-directory: ./backend
+        env:
+          DB_APP_URL: postgresql+psycopg://campuscare_app:CampusCareAppSecurePass2026!@localhost:5432/campuscare
+          DB_MIGRATOR_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
+          DATABASE_URL: postgresql+psycopg://campuscare_app:CampusCareAppSecurePass2026!@localhost:5432/campuscare
+          MIGRATION_DATABASE_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
+        run: |
+          python src/scripts/seed_pilot.py
 
       - name: Run Full Test Suite (Catalog RLS, Boundaries, Auth Matrix & Pilot Journeys)
         working-directory: ./backend
@@ -63,6 +74,7 @@ jobs:
           MIGRATION_DATABASE_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
           APP_SECRET_KEY: test_ci_jwt_session_secret_key_1234567890
         run: |
+          mkdir -p ../docs/reports
           pytest tests/ -v --junitxml=../docs/reports/pytest_ci_report.xml
 
       - name: Set up Node.js 20

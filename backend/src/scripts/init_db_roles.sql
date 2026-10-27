@@ -26,3 +26,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO campuscar
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO campuscare_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO campuscare_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO campuscare_app;
+
+-- Grant admin role membership to configure migrator default privileges
+GRANT campuscare_migrator TO campuscare_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE campuscare_migrator IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO campuscare_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE campuscare_migrator IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO campuscare_app;
+
