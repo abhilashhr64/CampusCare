@@ -5,6 +5,7 @@ from sqlalchemy import String, Integer, DateTime, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, Session
 from sqlalchemy.dialects.postgresql import UUID
 from src.core.database import Base
+from src.core.rls import set_tenant_context
 
 
 class OutboxEvent(Base):
@@ -33,6 +34,9 @@ def publish_event(
     college_id: Optional[uuid.UUID] = None,
 ) -> OutboxEvent:
     """Enqueues an event to the transactional outbox table within the caller's transaction."""
+    if college_id and not session.info.get("college_id"):
+        set_tenant_context(session, college_id=college_id)
+
     event = OutboxEvent(
         college_id=college_id,
         topic=topic,

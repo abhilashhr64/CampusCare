@@ -22,7 +22,7 @@ class AuditService:
         """Records an append-only, tamper-evident hash-chained audit entry (Rule B3, BR-1)."""
         set_tenant_context(db, college_id=college_id, user_id=actor_id)
 
-        # Retrieve the most recent hash in the chain for this tenant
+        # Retrieve the most recent hash and sequence in the chain for this tenant
         last_entry = db.scalar(
             select(AuditLogEntry)
             .where(AuditLogEntry.college_id == college_id)
@@ -30,6 +30,7 @@ class AuditService:
             .limit(1)
         )
         prev_hash = last_entry.entry_hash if last_entry else "0" * 64
+        sequence_number = (last_entry.sequence_number + 1) if (last_entry and last_entry.sequence_number is not None) else 1
         now_iso = datetime.datetime.now(timezone.utc).isoformat()
 
         entry_hash = AuditLogEntry.compute_hash(
@@ -44,6 +45,7 @@ class AuditService:
 
         entry = AuditLogEntry(
             college_id=college_id,
+            sequence_number=sequence_number,
             actor_id=actor_id,
             action=action,
             resource_type=resource_type,

@@ -21,7 +21,11 @@ import src.modules.identity.models
 import src.modules.access.models
 import src.modules.directory.models
 import src.modules.audit.models
+import src.modules.attendance.models
+import src.modules.complaints.models
+import src.modules.feedback.models
 import src.core.outbox
+
 
 config = context.config
 

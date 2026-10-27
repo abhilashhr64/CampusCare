@@ -49,8 +49,8 @@ app_engine = create_engine(
     pool_pre_ping=True,
 )
 
-SessionMigrator = sessionmaker(autocommit=False, autoflush=False, bind=migrator_engine)
-SessionApp = sessionmaker(autocommit=False, autoflush=False, bind=app_engine)
+SessionMigrator = sessionmaker(autocommit=False, autoflush=False, bind=migrator_engine, expire_on_commit=False)
+SessionApp = sessionmaker(autocommit=False, autoflush=False, bind=app_engine, expire_on_commit=False)
 
 
 def get_app_db() -> Generator[Session, None, None]:

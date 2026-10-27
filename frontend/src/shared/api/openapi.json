@@ -518,6 +518,542 @@
         }
       }
     },
+    "/api/v1/complaints": {
+      "get": {
+        "tags": [
+          "Complaints & Service Promise"
+        ],
+        "summary": "List Complaints",
+        "operationId": "list_complaints_api_v1_complaints_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ComplaintResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Complaints Api V1 Complaints Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Complaints & Service Promise"
+        ],
+        "summary": "Create Complaint",
+        "operationId": "create_complaint_api_v1_complaints_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplaintCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/complaints/{complaint_id}": {
+      "get": {
+        "tags": [
+          "Complaints & Service Promise"
+        ],
+        "summary": "Get Complaint",
+        "operationId": "get_complaint_api_v1_complaints__complaint_id__get",
+        "parameters": [
+          {
+            "name": "complaint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Complaint Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/complaints/{complaint_id}/assign": {
+      "post": {
+        "tags": [
+          "Complaints & Service Promise"
+        ],
+        "summary": "Assign Complaint",
+        "operationId": "assign_complaint_api_v1_complaints__complaint_id__assign_post",
+        "parameters": [
+          {
+            "name": "complaint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Complaint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignComplaintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/complaints/{complaint_id}/resolve": {
+      "post": {
+        "tags": [
+          "Complaints & Service Promise"
+        ],
+        "summary": "Resolve Complaint",
+        "operationId": "resolve_complaint_api_v1_complaints__complaint_id__resolve_post",
+        "parameters": [
+          {
+            "name": "complaint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Complaint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveComplaintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/complaints/{complaint_id}/closed-loop-confirm": {
+      "post": {
+        "tags": [
+          "Complaints & Service Promise"
+        ],
+        "summary": "Confirm Or Reopen Resolution",
+        "description": "Closed-loop resolution: original student confirms or reopens the issue (Rule B3).",
+        "operationId": "confirm_or_reopen_resolution_api_v1_complaints__complaint_id__closed_loop_confirm_post",
+        "parameters": [
+          {
+            "name": "complaint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Complaint Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedback/cycles": {
+      "get": {
+        "tags": [
+          "Anonymous Teacher Feedback"
+        ],
+        "summary": "List Feedback Cycles",
+        "operationId": "list_feedback_cycles_api_v1_feedback_cycles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackCycleResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Feedback Cycles Api V1 Feedback Cycles Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Anonymous Teacher Feedback"
+        ],
+        "summary": "Create Feedback Cycle",
+        "operationId": "create_feedback_cycle_api_v1_feedback_cycles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackCycleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackCycleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedback/submit": {
+      "post": {
+        "tags": [
+          "Anonymous Teacher Feedback"
+        ],
+        "summary": "Submit Feedback",
+        "description": "Submits student feedback with cryptographic unlinkability (Rule NR-10).",
+        "operationId": "submit_feedback_api_v1_feedback_submit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedback/aggregates/{lecturer_id}": {
+      "get": {
+        "tags": [
+          "Anonymous Teacher Feedback"
+        ],
+        "summary": "Get Lecturer Feedback Aggregates",
+        "description": "Returns lecturer aggregate feedback with k-anonymity enforcement (Rule AZ-6, NR-10).",
+        "operationId": "get_lecturer_feedback_aggregates_api_v1_feedback_aggregates__lecturer_id__get",
+        "parameters": [
+          {
+            "name": "lecturer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Lecturer Id"
+            }
+          },
+          {
+            "name": "cycle_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cycle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackAggregateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance/sessions": {
+      "post": {
+        "tags": [
+          "Attendance Workflows"
+        ],
+        "summary": "Create Attendance Session",
+        "operationId": "create_attendance_session_api_v1_attendance_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance/sync": {
+      "post": {
+        "tags": [
+          "Attendance Workflows"
+        ],
+        "summary": "Sync Attendance Batch",
+        "description": "Batch synchronization endpoint for offline attendance operations (Rule C7).",
+        "operationId": "sync_attendance_batch_api_v1_attendance_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/AttendanceOpEntry"
+                },
+                "type": "array",
+                "title": "Batch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SyncOutcome"
+                  },
+                  "type": "array",
+                  "title": "Response Sync Attendance Batch Api V1 Attendance Sync Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attendance/summary/me": {
+      "get": {
+        "tags": [
+          "Attendance Workflows"
+        ],
+        "summary": "Get My Attendance Summary",
+        "description": "Real-time attendance standing and what-if projection for authenticated student.",
+        "operationId": "get_my_attendance_summary_api_v1_attendance_summary_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/system/health": {
       "get": {
         "tags": [
@@ -541,6 +1077,85 @@
   },
   "components": {
     "schemas": {
+      "AssignComplaintRequest": {
+        "properties": {
+          "assigned_to_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To User Id"
+          },
+          "assigned_department_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Department Id"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "title": "AssignComplaintRequest"
+      },
+      "AttendanceOpEntry": {
+        "properties": {
+          "op_id": {
+            "type": "string",
+            "title": "Op Id"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Session Id"
+          },
+          "class_section_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Section Id"
+          },
+          "base_version": {
+            "type": "integer",
+            "title": "Base Version"
+          },
+          "student_records": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Student Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op_id",
+          "session_id",
+          "class_section_id",
+          "base_version",
+          "student_records"
+        ],
+        "title": "AttendanceOpEntry"
+      },
       "ClassSectionResponse": {
         "properties": {
           "id": {
@@ -639,6 +1254,229 @@
           "settings"
         ],
         "title": "CollegeResponse"
+      },
+      "ComplaintCreate": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "location_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Tag"
+          },
+          "is_sensitive": {
+            "type": "boolean",
+            "title": "Is Sensitive",
+            "default": false
+          },
+          "sla_committed_hours": {
+            "type": "integer",
+            "title": "Sla Committed Hours",
+            "default": 48
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "title",
+          "description"
+        ],
+        "title": "ComplaintCreate"
+      },
+      "ComplaintResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "ticket_number": {
+            "type": "string",
+            "title": "Ticket Number"
+          },
+          "creator_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Creator Id"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "location_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Tag"
+          },
+          "is_sensitive": {
+            "type": "boolean",
+            "title": "Is Sensitive"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "assigned_to_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To User Id"
+          },
+          "assigned_department_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Department Id"
+          },
+          "sla_committed_hours": {
+            "type": "integer",
+            "title": "Sla Committed Hours"
+          },
+          "sla_deadline": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Sla Deadline"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "student_confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Confirmed"
+          },
+          "student_feedback_rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Feedback Rating"
+          },
+          "student_feedback_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Feedback Comment"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "ticket_number",
+          "creator_id",
+          "category",
+          "title",
+          "description",
+          "location_tag",
+          "is_sensitive",
+          "status",
+          "assigned_to_user_id",
+          "assigned_department_id",
+          "sla_committed_hours",
+          "sla_deadline",
+          "resolved_at",
+          "closed_at",
+          "student_confirmed",
+          "student_feedback_rating",
+          "student_feedback_comment",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ComplaintResponse"
       },
       "CourseCreate": {
         "properties": {
@@ -770,6 +1608,247 @@
         ],
         "title": "DepartmentResponse"
       },
+      "FeedbackAggregateResponse": {
+        "properties": {
+          "lecturer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lecturer Id"
+          },
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cycle Id"
+          },
+          "response_count": {
+            "type": "integer",
+            "title": "Response Count"
+          },
+          "k_anonymity_met": {
+            "type": "boolean",
+            "title": "K Anonymity Met"
+          },
+          "k_threshold": {
+            "type": "integer",
+            "title": "K Threshold"
+          },
+          "avg_pedagogy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Pedagogy"
+          },
+          "avg_clarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Clarity"
+          },
+          "avg_engagement": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Engagement"
+          },
+          "avg_punctuality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Punctuality"
+          },
+          "overall_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall Rating"
+          },
+          "qualitative_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualitative Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lecturer_id",
+          "cycle_id",
+          "response_count",
+          "k_anonymity_met",
+          "k_threshold"
+        ],
+        "title": "FeedbackAggregateResponse"
+      },
+      "FeedbackCycleCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "academic_term": {
+            "type": "string",
+            "title": "Academic Term"
+          },
+          "k_anonymity_threshold": {
+            "type": "integer",
+            "title": "K Anonymity Threshold",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "academic_term"
+        ],
+        "title": "FeedbackCycleCreate"
+      },
+      "FeedbackCycleResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "academic_term": {
+            "type": "string",
+            "title": "Academic Term"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "k_anonymity_threshold": {
+            "type": "integer",
+            "title": "K Anonymity Threshold"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "title",
+          "academic_term",
+          "is_active",
+          "k_anonymity_threshold",
+          "created_at"
+        ],
+        "title": "FeedbackCycleResponse"
+      },
+      "FeedbackSubmitRequest": {
+        "properties": {
+          "cycle_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cycle Id"
+          },
+          "class_section_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Section Id"
+          },
+          "course_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Course Id"
+          },
+          "lecturer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lecturer Id"
+          },
+          "rating_pedagogy": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating Pedagogy"
+          },
+          "rating_clarity": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating Clarity"
+          },
+          "rating_engagement": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating Engagement"
+          },
+          "rating_punctuality": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating Punctuality"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cycle_id",
+          "class_section_id",
+          "course_id",
+          "lecturer_id",
+          "rating_pedagogy",
+          "rating_clarity",
+          "rating_engagement",
+          "rating_punctuality"
+        ],
+        "title": "FeedbackSubmitRequest"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -807,6 +1886,54 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "ResolutionConfirmRequest": {
+        "properties": {
+          "student_confirmed": {
+            "type": "boolean",
+            "title": "Student Confirmed"
+          },
+          "feedback_rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Rating"
+          },
+          "feedback_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_confirmed"
+        ],
+        "title": "ResolutionConfirmRequest"
+      },
+      "ResolveComplaintRequest": {
+        "properties": {
+          "resolution_note": {
+            "type": "string",
+            "title": "Resolution Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resolution_note"
+        ],
+        "title": "ResolveComplaintRequest"
       },
       "RevokeRequest": {
         "properties": {
@@ -940,6 +2067,122 @@
         ],
         "title": "RoleGrantResponse"
       },
+      "SessionCreateRequest": {
+        "properties": {
+          "class_section_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Section Id"
+          },
+          "session_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Session Date"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "class_section_id",
+          "session_date",
+          "start_time",
+          "end_time"
+        ],
+        "title": "SessionCreateRequest"
+      },
+      "SessionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "college_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "College Id"
+          },
+          "class_section_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Section Id"
+          },
+          "lecturer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lecturer Id"
+          },
+          "session_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Session Date"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "time",
+            "title": "End Time"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "college_id",
+          "class_section_id",
+          "lecturer_id",
+          "session_date",
+          "start_time",
+          "end_time",
+          "topic",
+          "version",
+          "created_at"
+        ],
+        "title": "SessionResponse"
+      },
       "StudentSignupRequest": {
         "properties": {
           "college_id": {
@@ -969,6 +2212,60 @@
           "password"
         ],
         "title": "StudentSignupRequest"
+      },
+      "SyncOutcome": {
+        "properties": {
+          "op_id": {
+            "type": "string",
+            "title": "Op Id"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "server_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Version"
+          },
+          "server_records": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op_id",
+          "outcome"
+        ],
+        "title": "SyncOutcome"
       },
       "TokenResponse": {
         "properties": {
