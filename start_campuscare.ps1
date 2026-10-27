@@ -22,7 +22,9 @@ if (-not $pgListening) {
 # 2. Run Migrations & Start FastAPI Backend
 Write-Host "[2/3] Checking Alembic migrations and starting Backend (Port 8000)..." -ForegroundColor Yellow
 $backendVenv = "$WorkspaceRoot\backend\.venv\Scripts"
+Push-Location "$WorkspaceRoot\backend"
 & "$backendVenv\alembic.exe" -c "$WorkspaceRoot\backend\alembic.ini" upgrade head
+Pop-Location
 
 $backendListening = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue
 if (-not $backendListening) {
