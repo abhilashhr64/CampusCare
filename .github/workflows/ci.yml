@@ -49,6 +49,7 @@ jobs:
       - name: Run Alembic Migrations
         working-directory: ./backend
         env:
+          DB_MIGRATOR_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
           MIGRATION_DATABASE_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
         run: |
           alembic upgrade head
@@ -56,6 +57,8 @@ jobs:
       - name: Run Full Test Suite (Catalog RLS, Boundaries, Auth Matrix & Pilot Journeys)
         working-directory: ./backend
         env:
+          DB_APP_URL: postgresql+psycopg://campuscare_app:CampusCareAppSecurePass2026!@localhost:5432/campuscare
+          DB_MIGRATOR_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
           DATABASE_URL: postgresql+psycopg://campuscare_app:CampusCareAppSecurePass2026!@localhost:5432/campuscare
           MIGRATION_DATABASE_URL: postgresql+psycopg://campuscare_migrator:CampusCareMigrateSecurePass2026!@localhost:5432/campuscare
           APP_SECRET_KEY: test_ci_jwt_session_secret_key_1234567890
@@ -72,9 +75,10 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: |
-          npm install
+          npm ci
 
       - name: Build Next.js Production Bundle (Turbopack)
         working-directory: ./frontend
         run: |
           npm run build
+

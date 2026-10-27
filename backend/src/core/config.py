@@ -1,4 +1,5 @@
 from typing import Literal
+from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,12 +10,14 @@ class Settings(BaseSettings):
 
     # Database URLs (NR-2, TN-3)
     # Privileged role for migrations (creates tables & forced RLS policies)
-    DB_MIGRATOR_URL: str = (
-        "postgresql+psycopg://campuscare_migrator:campuscare_migrator_pass@localhost:5433/campuscare"
+    DB_MIGRATOR_URL: str = Field(
+        default="postgresql+psycopg://campuscare_migrator:campuscare_migrator_pass@localhost:5433/campuscare",
+        validation_alias=AliasChoices("DB_MIGRATOR_URL", "MIGRATION_DATABASE_URL"),
     )
     # Non-owner application runtime role (NOBYPASSRLS)
-    DB_APP_URL: str = (
-        "postgresql+psycopg://campuscare_app:campuscare_app_pass@localhost:5433/campuscare"
+    DB_APP_URL: str = Field(
+        default="postgresql+psycopg://campuscare_app:campuscare_app_pass@localhost:5433/campuscare",
+        validation_alias=AliasChoices("DB_APP_URL", "DATABASE_URL"),
     )
 
     # Server Bindings
