@@ -343,6 +343,31 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    sendMobileOtp: (data: { phone_number: string; college_id?: string }) =>
+      request<{ success: boolean; message: string; phone_number: string; synthetic_otp: string; expires_in_seconds: number }>("/auth/mobile/send-otp", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    verifyMobileOtp: (data: { phone_number: string; code: string; college_id?: string }) =>
+      request<GoogleLoginResponse>("/auth/mobile/verify-otp", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    registerUser: (data: {
+      full_name: string;
+      email: string;
+      phone_number: string;
+      password: string;
+      user_type: "STUDENT" | "STAFF";
+      roll_number?: string;
+      department?: string;
+      staff_role?: string;
+      college_id?: string;
+    }) =>
+      request<GoogleLoginResponse>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
     getMe: () => request<User>("/auth/me"),
   },
   access: {

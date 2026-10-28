@@ -21,6 +21,8 @@ class User(TenantBase):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    roll_number: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     hashed_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -40,6 +42,8 @@ class User(TenantBase):
         UniqueConstraint("college_id", "email", name="uq_users_college_email"),
         UniqueConstraint("college_id", "id", name="uq_users_college_id"),
         Index("ix_users_college_email", "college_id", "email"),
+        Index("ix_users_college_phone", "college_id", "phone_number"),
+        Index("ix_users_college_roll", "college_id", "roll_number"),
     )
 
 

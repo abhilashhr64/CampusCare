@@ -82,22 +82,66 @@ def seed_pilot_data():
     with migrator_engine.begin() as conn:
         conn.execute(text(f"SET LOCAL app.current_college_id = '{college_id}'"))
 
-        # College Admin
+        # College Director / Management Person
         admin_id = conn.execute(
             text(
-                "INSERT INTO users (id, college_id, email, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
-                "VALUES (:id, :cid, 'admin@apex.edu', 'Dr. S. K. Raman (Director)', true, true, true, now(), now()) "
-                "ON CONFLICT (college_id, email) DO UPDATE SET is_active = true RETURNING id"
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'admin@apex.edu', '+919845011001', 'Dr. S. K. Raman (Director & Principal)', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011001', is_active = true RETURNING id"
             ),
             {"id": admin_id, "cid": college_id},
+        ).scalar_one()
+
+        # Transport Head (Campus Transit & Bus Fleet In-charge)
+        transport_id = uuid.uuid4()
+        transport_id = conn.execute(
+            text(
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'transport.head@apex.edu', '+919845011002', 'Rajesh Gowda (Transport Head)', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011002', is_active = true RETURNING id"
+            ),
+            {"id": transport_id, "cid": college_id},
+        ).scalar_one()
+
+        # Chief Hostel Warden (Residential Blocks A/B/C & Dining Mess)
+        warden_id = uuid.uuid4()
+        warden_id = conn.execute(
+            text(
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'hostel.warden@apex.edu', '+919845011003', 'Col. Mahendra Singh (Chief Hostel Warden)', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011003', is_active = true RETURNING id"
+            ),
+            {"id": warden_id, "cid": college_id},
+        ).scalar_one()
+
+        # Finance & Accounts Bursar
+        bursar_id = uuid.uuid4()
+        bursar_id = conn.execute(
+            text(
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'bursar@apex.edu', '+919845011004', 'Dr. K. Raghavan (Finance Officer & Bursar)', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011004', is_active = true RETURNING id"
+            ),
+            {"id": bursar_id, "cid": college_id},
+        ).scalar_one()
+
+        # Campus Estate & Facilities Head
+        facilities_id = uuid.uuid4()
+        facilities_id = conn.execute(
+            text(
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'estate.officer@apex.edu', '+919845011005', 'Er. Suresh Kumar (Estate & Facilities Head)', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011005', is_active = true RETURNING id"
+            ),
+            {"id": facilities_id, "cid": college_id},
         ).scalar_one()
 
         # Department Admin (CSE)
         dept_admin_id = conn.execute(
             text(
-                "INSERT INTO users (id, college_id, email, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
-                "VALUES (:id, :cid, 'cse.admin@apex.edu', 'Prof. Sunita Reddy (HOD CSE)', true, true, true, now(), now()) "
-                "ON CONFLICT (college_id, email) DO UPDATE SET is_active = true RETURNING id"
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'cse.admin@apex.edu', '+919845011006', 'Prof. Sunita Reddy (HOD CSE)', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011006', is_active = true RETURNING id"
             ),
             {"id": dept_admin_id, "cid": college_id},
         ).scalar_one()
@@ -105,34 +149,34 @@ def seed_pilot_data():
         # Lecturer
         lecturer_id = conn.execute(
             text(
-                "INSERT INTO users (id, college_id, email, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
-                "VALUES (:id, :cid, 'prof.rao@apex.edu', 'Prof. Raghav Rao', true, true, true, now(), now()) "
-                "ON CONFLICT (college_id, email) DO UPDATE SET is_active = true RETURNING id"
+                "INSERT INTO users (id, college_id, email, phone_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'prof.rao@apex.edu', '+919845011007', 'Prof. Raghav Rao', true, true, true, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845011007', is_active = true RETURNING id"
             ),
             {"id": lecturer_id, "cid": college_id},
         ).scalar_one()
 
-        # Student 1
+        # Student 1 (Aarav Sharma)
         student_1_id = conn.execute(
             text(
-                "INSERT INTO users (id, college_id, email, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
-                "VALUES (:id, :cid, 'aarav.sharma@apex.edu', 'Aarav Sharma', true, true, false, now(), now()) "
-                "ON CONFLICT (college_id, email) DO UPDATE SET is_active = true RETURNING id"
+                "INSERT INTO users (id, college_id, email, phone_number, roll_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'aarav.sharma@apex.edu', '+919845022001', '26CS01', 'Aarav Sharma', true, true, false, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845022001', roll_number = '26CS01', is_active = true RETURNING id"
             ),
             {"id": student_1_id, "cid": college_id},
         ).scalar_one()
 
-        # Student 2
+        # Student 2 (Dev Patel)
         student_2_id = conn.execute(
             text(
-                "INSERT INTO users (id, college_id, email, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
-                "VALUES (:id, :cid, 'dev.patel@apex.edu', 'Dev Patel', true, true, false, now(), now()) "
-                "ON CONFLICT (college_id, email) DO UPDATE SET is_active = true RETURNING id"
+                "INSERT INTO users (id, college_id, email, phone_number, roll_number, full_name, is_email_verified, is_active, is_mfa_enabled, created_at, updated_at) "
+                "VALUES (:id, :cid, 'dev.patel@apex.edu', '+919845022002', '26CS03', 'Dev Patel', true, true, false, now(), now()) "
+                "ON CONFLICT (college_id, email) DO UPDATE SET phone_number = '+919845022002', roll_number = '26CS03', is_active = true RETURNING id"
             ),
             {"id": student_2_id, "cid": college_id},
         ).scalar_one()
 
-    print("Provisioned Pilot Users (Admin, Dept Admin, Lecturer, Students)")
+    print("Provisioned Real College Authorities: Director, Transport Head, Hostel Warden, Bursar, Estate Officer, HOD, Faculty, Students")
 
     # 3. Grant Explicit Roles (Rule AZ-5)
     with SessionApp() as db:
@@ -141,7 +185,37 @@ def seed_pilot_data():
             db,
             college_id,
             admin_id,
+            RoleGrantCreate(user_id=admin_id, role="COLLEGE_MANAGEMENT", reason="Executive Management Appointment"),
+        )
+        AccessService.grant_role(
+            db,
+            college_id,
+            admin_id,
             RoleGrantCreate(user_id=admin_id, role="COLLEGE_ADMIN", reason="Pilot College Administrator Onboarding"),
+        )
+        AccessService.grant_role(
+            db,
+            college_id,
+            admin_id,
+            RoleGrantCreate(user_id=transport_id, role="TRANSPORT_HEAD", reason="Campus Transit & Fleet In-charge"),
+        )
+        AccessService.grant_role(
+            db,
+            college_id,
+            admin_id,
+            RoleGrantCreate(user_id=warden_id, role="HOSTEL_WARDEN", reason="Chief Hostel Warden Residential Appointment"),
+        )
+        AccessService.grant_role(
+            db,
+            college_id,
+            admin_id,
+            RoleGrantCreate(user_id=bursar_id, role="BURSAR_ACCOUNTS", reason="Finance & Fee Treasury Officer"),
+        )
+        AccessService.grant_role(
+            db,
+            college_id,
+            admin_id,
+            RoleGrantCreate(user_id=facilities_id, role="FACILITIES_HEAD", reason="Campus Infrastructure & Estate Officer"),
         )
         AccessService.grant_role(
             db,
@@ -159,13 +233,13 @@ def seed_pilot_data():
             db,
             college_id,
             admin_id,
-            RoleGrantCreate(user_id=student_1_id, role="STUDENT", reason="Undergraduate Enrolled Student"),
+            RoleGrantCreate(user_id=student_1_id, role="STUDENT", reason="Undergraduate Enrolled Student (26CS01)"),
         )
         AccessService.grant_role(
             db,
             college_id,
             admin_id,
-            RoleGrantCreate(user_id=student_2_id, role="STUDENT", reason="Undergraduate Enrolled Student"),
+            RoleGrantCreate(user_id=student_2_id, role="STUDENT", reason="Undergraduate Enrolled Student (26CS03)"),
         )
     print("Granted RBAC/ABAC Scoped Roles")
 

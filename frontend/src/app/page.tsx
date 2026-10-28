@@ -52,6 +52,18 @@ import {
   Compass,
   Navigation,
   Footprints,
+  Home,
+  Building,
+  Wrench,
+  Phone,
+  Key,
+  Bus,
+  Bed,
+  Utensils,
+  Zap,
+  DollarSign,
+  Activity,
+  ShieldAlert,
 } from "lucide-react";
 import { api } from "@/shared/api/client";
 import { FacilityQrSuiteModal } from "@/features/facilities/FacilityQrSuiteModal";
@@ -93,7 +105,21 @@ const GoogleGIcon = () => (
   </svg>
 );
 
-type Persona = "STUDENT" | "LECTURER" | "DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "WHAT_IF" | "SECURITY_RLS" | "CAMPUS_AI" | "CAMPUS_MAP" | "FEES";
+type Persona =
+  | "STUDENT"
+  | "LECTURER"
+  | "DEPARTMENT_ADMIN"
+  | "COLLEGE_ADMIN"
+  | "COLLEGE_MANAGEMENT"
+  | "TRANSPORT_HEAD"
+  | "HOSTEL_WARDEN"
+  | "BURSAR_ACCOUNTS"
+  | "FACILITIES_HEAD"
+  | "WHAT_IF"
+  | "SECURITY_RLS"
+  | "CAMPUS_AI"
+  | "CAMPUS_MAP"
+  | "FEES";
 
 export default function CampusCarePortal() {
   // Authentication & Dashboard Segregation State
@@ -101,19 +127,36 @@ export default function CampusCarePortal() {
     id: string;
     email: string;
     full_name: string;
+    phone_number?: string;
+    roll_number?: string;
     roles: string[];
     is_email_verified: boolean;
   }>({
     id: "pilot-student-1",
     email: "aarav.sharma@apex.edu",
     full_name: "Aarav Sharma",
+    phone_number: "+919845022001",
+    roll_number: "26CS01",
     roles: ["STUDENT"],
     is_email_verified: true,
   });
 
   const [activeDashboard, setActiveDashboard] = useState<"USER" | "ADMIN">("USER");
   const [userTab, setUserTab] = useState<"STUDENT" | "WHAT_IF" | "CAMPUS_AI" | "GRIEVANCES" | "FEEDBACK" | "CAMPUS_MAP" | "OFFLINE_SYNC" | "FEES">("STUDENT");
-  const [adminTab, setAdminTab] = useState<"DEPARTMENT_ADMIN" | "COLLEGE_ADMIN" | "SLA_RADAR" | "DUPLICATES" | "KNOWLEDGE" | "SECURITY_RLS" | "CAMPUS_MAP">("DEPARTMENT_ADMIN");
+  const [adminTab, setAdminTab] = useState<
+    | "COLLEGE_MANAGEMENT"
+    | "TRANSPORT_HEAD"
+    | "HOSTEL_WARDEN"
+    | "BURSAR_ACCOUNTS"
+    | "FACILITIES_HEAD"
+    | "DEPARTMENT_ADMIN"
+    | "COLLEGE_ADMIN"
+    | "SLA_RADAR"
+    | "DUPLICATES"
+    | "KNOWLEDGE"
+    | "SECURITY_RLS"
+    | "CAMPUS_MAP"
+  >("COLLEGE_MANAGEMENT");
 
   // College Fee Accounts & Official Receipt State
   const [feeDues, setFeeDues] = useState<Array<{
@@ -202,10 +245,32 @@ export default function CampusCarePortal() {
   const [selectedDossierComplaint, setSelectedDossierComplaint] = useState<IncidentDossierRecord | null>(null);
 
   const [showGoogleLoginModal, setShowGoogleLoginModal] = useState<boolean>(false);
+  const [authModalTab, setAuthModalTab] = useState<"EMAIL_SSO" | "MOBILE_OTP" | "SIGNUP">("EMAIL_SSO");
   const [googleEmailInput, setGoogleEmailInput] = useState<string>("");
   const [googleDomainError, setGoogleDomainError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [showAccessDeniedModal, setShowAccessDeniedModal] = useState<boolean>(false);
+
+  // Mobile OTP Auth State
+  const [mobilePhoneInput, setMobilePhoneInput] = useState<string>("+919845011002");
+  const [mobileOtpInput, setMobileOtpInput] = useState<string>("");
+  const [mobileOtpDispatched, setMobileOtpDispatched] = useState<boolean>(false);
+  const [mobileOtpSuccessMsg, setMobileOtpSuccessMsg] = useState<string | null>(null);
+  const [mobileOtpError, setMobileOtpError] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
+
+  // Real College Onboarding & Registration Form State
+  const [signupType, setSignupType] = useState<"STUDENT" | "STAFF">("STUDENT");
+  const [signupFullName, setSignupFullName] = useState<string>("");
+  const [signupEmail, setSignupEmail] = useState<string>("");
+  const [signupPhone, setSignupPhone] = useState<string>("");
+  const [signupRollNumber, setSignupRollNumber] = useState<string>("");
+  const [signupPassword, setSignupPassword] = useState<string>("");
+  const [signupStaffRole, setSignupStaffRole] = useState<string>("TRANSPORT_HEAD");
+  const [signupError, setSignupError] = useState<string | null>(null);
+  const [isSubmittingSignup, setIsSubmittingSignup] = useState<boolean>(false);
+
 
   const [activePersona, setActivePersona] = useState<Persona>("STUDENT");
   const [activeTenant, setActiveTenant] = useState<"APEX" | "HORIZON">("APEX");
@@ -1304,20 +1369,34 @@ export default function CampusCarePortal() {
         id: res.user.id,
         email: res.user.email,
         full_name: res.user.full_name,
+        phone_number: (res.user as any).phone_number,
+        roll_number: (res.user as any).roll_number,
         roles: res.user.roles,
         is_email_verified: res.user.is_email_verified,
       });
 
-      if (res.dashboard_type === "ADMIN") {
+      const adminRoles = [
+        "COLLEGE_ADMIN",
+        "COLLEGE_MANAGEMENT",
+        "TRANSPORT_HEAD",
+        "HOSTEL_WARDEN",
+        "BURSAR_ACCOUNTS",
+        "FACILITIES_HEAD",
+        "DEPARTMENT_ADMIN",
+      ];
+      const matchedAdminRole = res.user.roles.find((r: string) => adminRoles.includes(r));
+
+      if (res.dashboard_type === "ADMIN" || matchedAdminRole) {
         setActiveDashboard("ADMIN");
-        setActivePersona("DEPARTMENT_ADMIN");
-        setAdminTab("DEPARTMENT_ADMIN");
-        setNotificationMsg(`Welcome, ${res.user.full_name}! Authenticated via Google College SSO. Accessing Admin Dashboard.`);
+        const targetPersona = (matchedAdminRole as any) || "COLLEGE_MANAGEMENT";
+        setActivePersona(targetPersona);
+        setAdminTab(targetPersona);
+        setNotificationMsg(`Welcome, ${res.user.full_name}! Authenticated via College Mail ID. Accessing ${targetPersona.replace("_", " ")} Desk.`);
       } else {
         setActiveDashboard("USER");
         setActivePersona("STUDENT");
         setUserTab("STUDENT");
-        setNotificationMsg(`Welcome, ${res.user.full_name}! Authenticated via Google College SSO. Accessing User Dashboard.`);
+        setNotificationMsg(`Welcome, ${res.user.full_name}! Authenticated via College Mail ID. Accessing Student Portal.`);
       }
 
       setShowGoogleLoginModal(false);
@@ -1330,26 +1409,173 @@ export default function CampusCarePortal() {
     }
   };
 
+  const handleSendMobileOtp = async () => {
+    if (!mobilePhoneInput.trim()) {
+      setMobileOtpError("Please enter a valid registered mobile number.");
+      return;
+    }
+    setIsSendingOtp(true);
+    setMobileOtpError(null);
+    setMobileOtpSuccessMsg(null);
+    try {
+      const res = await api.auth.sendMobileOtp({ phone_number: mobilePhoneInput.trim() });
+      setMobileOtpDispatched(true);
+      setMobileOtpSuccessMsg(`${res.message} (Synthetic OTP: ${res.synthetic_otp})`);
+      setMobileOtpInput(res.synthetic_otp);
+    } catch (err: any) {
+      setMobileOtpError(err.message || "Failed to dispatch mobile OTP.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyMobileOtp = async () => {
+    if (!mobileOtpInput.trim()) {
+      setMobileOtpError("Please enter the 6-digit verification code.");
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setMobileOtpError(null);
+    try {
+      const res = await api.auth.verifyMobileOtp({
+        phone_number: mobilePhoneInput.trim(),
+        code: mobileOtpInput.trim(),
+      });
+      setCurrentUser({
+        id: res.user.id,
+        email: res.user.email,
+        full_name: res.user.full_name,
+        phone_number: (res.user as any).phone_number || mobilePhoneInput.trim(),
+        roll_number: (res.user as any).roll_number,
+        roles: res.user.roles,
+        is_email_verified: res.user.is_email_verified,
+      });
+
+      const adminRoles = [
+        "COLLEGE_ADMIN",
+        "COLLEGE_MANAGEMENT",
+        "TRANSPORT_HEAD",
+        "HOSTEL_WARDEN",
+        "BURSAR_ACCOUNTS",
+        "FACILITIES_HEAD",
+        "DEPARTMENT_ADMIN",
+      ];
+      const matchedAdminRole = res.user.roles.find((r: string) => adminRoles.includes(r));
+      if (res.dashboard_type === "ADMIN" || matchedAdminRole) {
+        setActiveDashboard("ADMIN");
+        const targetPersona = (matchedAdminRole as any) || "COLLEGE_MANAGEMENT";
+        setActivePersona(targetPersona);
+        setAdminTab(targetPersona);
+        setNotificationMsg(`Welcome, ${res.user.full_name}! Verified via Registered Mobile OTP. Accessing ${targetPersona.replace("_", " ")} Desk.`);
+      } else {
+        setActiveDashboard("USER");
+        setActivePersona("STUDENT");
+        setUserTab("STUDENT");
+        setNotificationMsg(`Welcome, ${res.user.full_name}! Verified via Registered Mobile OTP. Accessing Student Portal.`);
+      }
+      setShowGoogleLoginModal(false);
+      setMobileOtpDispatched(false);
+    } catch (err: any) {
+      setMobileOtpError(err.message || "Invalid or expired OTP.");
+    } finally {
+      setIsVerifyingOtp(false);
+      setTimeout(() => setNotificationMsg(null), 6000);
+    }
+  };
+
+  const handleRegisterUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signupFullName || !signupEmail || !signupPhone || !signupPassword) {
+      setSignupError("All fields are required.");
+      return;
+    }
+    setIsSubmittingSignup(true);
+    setSignupError(null);
+    try {
+      const res = await api.auth.registerUser({
+        full_name: signupFullName.trim(),
+        email: signupEmail.trim(),
+        phone_number: signupPhone.trim(),
+        password: signupPassword,
+        user_type: signupType,
+        roll_number: signupType === "STUDENT" ? signupRollNumber.trim() : undefined,
+        staff_role: signupType === "STAFF" ? signupStaffRole : undefined,
+      });
+      setCurrentUser({
+        id: res.user.id,
+        email: res.user.email,
+        full_name: res.user.full_name,
+        phone_number: signupPhone.trim(),
+        roll_number: (res.user as any).roll_number || signupRollNumber.trim(),
+        roles: res.user.roles,
+        is_email_verified: res.user.is_email_verified,
+      });
+
+      const adminRoles = [
+        "COLLEGE_ADMIN",
+        "COLLEGE_MANAGEMENT",
+        "TRANSPORT_HEAD",
+        "HOSTEL_WARDEN",
+        "BURSAR_ACCOUNTS",
+        "FACILITIES_HEAD",
+        "DEPARTMENT_ADMIN",
+      ];
+      const matchedAdminRole = res.user.roles.find((r: string) => adminRoles.includes(r));
+      if (res.dashboard_type === "ADMIN" || matchedAdminRole) {
+        setActiveDashboard("ADMIN");
+        const targetPersona = (matchedAdminRole as any) || "COLLEGE_MANAGEMENT";
+        setActivePersona(targetPersona);
+        setAdminTab(targetPersona);
+        setNotificationMsg(`Onboarding complete! Welcome, ${res.user.full_name} (${targetPersona.replace("_", " ")}).`);
+      } else {
+        setActiveDashboard("USER");
+        setActivePersona("STUDENT");
+        setUserTab("STUDENT");
+        setNotificationMsg(`Student admission registered! Welcome, ${res.user.full_name} (Roll: ${signupRollNumber || "Active"}).`);
+      }
+      setShowGoogleLoginModal(false);
+    } catch (err: any) {
+      setSignupError(err.message || "Registration failed. Verify institutional domain.");
+    } finally {
+      setIsSubmittingSignup(false);
+      setTimeout(() => setNotificationMsg(null), 6000);
+    }
+  };
+
   const handleSwitchDashboard = (target: "USER" | "ADMIN") => {
     if (target === "ADMIN") {
-      const isAdmin = currentUser.roles.some((r) => r === "COLLEGE_ADMIN" || r === "DEPARTMENT_ADMIN");
+      const adminRoles = [
+        "COLLEGE_ADMIN",
+        "COLLEGE_MANAGEMENT",
+        "TRANSPORT_HEAD",
+        "HOSTEL_WARDEN",
+        "BURSAR_ACCOUNTS",
+        "FACILITIES_HEAD",
+        "DEPARTMENT_ADMIN",
+      ];
+      const isAdmin = currentUser.roles.some((r) => adminRoles.includes(r));
       if (!isAdmin) {
         setShowAccessDeniedModal(true);
         return;
       }
       setActiveDashboard("ADMIN");
-      setActivePersona(adminTab === "COLLEGE_ADMIN" ? "COLLEGE_ADMIN" : "DEPARTMENT_ADMIN");
-      setNotificationMsg("Switched to Admin Dashboard (Department & College Governance).");
+      const matchedRole = currentUser.roles.find((r) => adminRoles.includes(r));
+      const targetP = (matchedRole as any) || "COLLEGE_MANAGEMENT";
+      setActivePersona(targetP);
+      setAdminTab(targetP);
+      setNotificationMsg(`Switched to Admin Dashboard (${targetP.replace("_", " ")} Operations).`);
     } else {
       setActiveDashboard("USER");
       if (userTab === "WHAT_IF") setActivePersona("WHAT_IF");
       else if (userTab === "CAMPUS_AI") setActivePersona("CAMPUS_AI");
       else if (userTab === "OFFLINE_SYNC") setActivePersona("LECTURER");
+      else if (userTab === "FEES") setActivePersona("FEES");
       else setActivePersona("STUDENT");
       setNotificationMsg("Switched to User Dashboard (Student & Faculty Services).");
     }
     setTimeout(() => setNotificationMsg(null), 4000);
   };
+
 
   const handleUserTabSelect = (tab: typeof userTab) => {
     setUserTab(tab);
@@ -1553,7 +1779,17 @@ export default function CampusCarePortal() {
 
   const handleAdminTabSelect = (tab: typeof adminTab) => {
     setAdminTab(tab);
-    if (tab === "DEPARTMENT_ADMIN" || tab === "SLA_RADAR" || tab === "DUPLICATES") {
+    if (tab === "COLLEGE_MANAGEMENT") {
+      setActivePersona("COLLEGE_MANAGEMENT");
+    } else if (tab === "TRANSPORT_HEAD") {
+      setActivePersona("TRANSPORT_HEAD");
+    } else if (tab === "HOSTEL_WARDEN") {
+      setActivePersona("HOSTEL_WARDEN");
+    } else if (tab === "BURSAR_ACCOUNTS") {
+      setActivePersona("BURSAR_ACCOUNTS");
+    } else if (tab === "FACILITIES_HEAD") {
+      setActivePersona("FACILITIES_HEAD");
+    } else if (tab === "DEPARTMENT_ADMIN" || tab === "SLA_RADAR" || tab === "DUPLICATES") {
       setActivePersona("DEPARTMENT_ADMIN");
     } else if (tab === "COLLEGE_ADMIN") {
       setActivePersona("COLLEGE_ADMIN");
@@ -1565,6 +1801,7 @@ export default function CampusCarePortal() {
       setActivePersona("CAMPUS_MAP");
     }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col bg-[#090d16] text-slate-100">
@@ -1765,15 +2002,70 @@ export default function CampusCarePortal() {
           ) : (
             <>
               <button
-                onClick={() => handleAdminTabSelect("DEPARTMENT_ADMIN")}
+                onClick={() => handleAdminTabSelect("COLLEGE_MANAGEMENT")}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-                  adminTab === "DEPARTMENT_ADMIN"
+                  adminTab === "COLLEGE_MANAGEMENT"
                     ? "bg-purple-600 text-white shadow-md shadow-purple-600/25"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
                 }`}
               >
-                <Building2 className="w-4 h-4" />
-                Department Admin Queue
+                <Building className="w-4 h-4 text-purple-400" />
+                Director & Management
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("TRANSPORT_HEAD")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "TRANSPORT_HEAD"
+                    ? "bg-amber-600 text-white shadow-md shadow-amber-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Navigation className="w-4 h-4 text-amber-400" />
+                Transport & Bus Fleet
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("HOSTEL_WARDEN")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "HOSTEL_WARDEN"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Home className="w-4 h-4 text-emerald-400" />
+                Hostel & Mess Warden
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("BURSAR_ACCOUNTS")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "BURSAR_ACCOUNTS"
+                    ? "bg-sky-600 text-white shadow-md shadow-sky-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-sky-400" />
+                Bursar & Accounts
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("FACILITIES_HEAD")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "FACILITIES_HEAD"
+                    ? "bg-teal-600 text-white shadow-md shadow-teal-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Wrench className="w-4 h-4 text-teal-400" />
+                Campus Estate & Infra
+              </button>
+              <button
+                onClick={() => handleAdminTabSelect("DEPARTMENT_ADMIN")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  adminTab === "DEPARTMENT_ADMIN"
+                    ? "bg-pink-600 text-white shadow-md shadow-pink-600/25"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Building2 className="w-4 h-4 text-pink-400" />
+                Department HOD Queue
               </button>
               <button
                 onClick={() => handleAdminTabSelect("SLA_RADAR")}
@@ -2884,6 +3176,1025 @@ export default function CampusCarePortal() {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PERSONA: COLLEGE MANAGEMENT & PRINCIPAL COMMAND RADAR                     */}
+        {/* ========================================================================= */}
+        {activePersona === "COLLEGE_MANAGEMENT" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3" />
+                    EXECUTIVE DIRECTORATE
+                  </span>
+                  <span className="text-xs text-slate-500">•</span>
+                  <span className="text-xs text-slate-400">NAAC A++ Accredited (Score 3.72/4.00)</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Executive Directorate & Principal Command</h1>
+                <p className="text-xs text-slate-400">
+                  Apex Institute of Technology • Multi-Department Governance, Statutory Approvals & Syndicate Escalations
+                </p>
+              </div>
+
+              <div className="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 border border-amber-500/30">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Dr. S. K. Raman</div>
+                  <div className="text-[11px] text-slate-400">Director & Principal • admin@apex.edu • +91 98450 11001</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Top 4 Directorate KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Campus Composite SLA</span>
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">94.8%</div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 mb-1">
+                  <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: "94.8%" }} />
+                </div>
+                <span className="text-[11px] text-emerald-400 font-medium">287 / 303 Resolved within SLA</span>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Active Operational Tickets</span>
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">18 Open</div>
+                <p className="text-[11px] text-slate-400 mt-2">Transit (4) • Hostel (5) • Estate (6) • Dept (3)</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Statutory Compliance</span>
+                  <CheckCircle2 className="w-4 h-4 text-sky-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-sky-400">100%</div>
+                <p className="text-[11px] text-slate-400 mt-2">Anti-Ragging Squad & ICC Active</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Campus Safety Index</span>
+                  <Shield className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-emerald-400">0 Critical</div>
+                <p className="text-[11px] text-slate-400 mt-2">All facilities in normal range</p>
+              </div>
+            </div>
+
+            {/* Syndicate Emergency Escalations */}
+            <div className="glass-panel rounded-2xl p-6 border border-amber-500/30">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-amber-400" />
+                    Executive Escalations & Syndicate Decisions
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    High-level matters requiring Director & Principal sanction pursuant to Institutional Charter.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  2 Pending Decisions
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-white">Emergency Fleet Route Expansion (Route 14 Extension)</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">
+                        Initiated by: Transport Head
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Add 2 designated stops at Bannerghatta Junction to accommodate 64 newly enrolled Day Scholars. Estimated operating cost: ₹18,000/month.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setNotificationMsg("Director Approval Sealed: Route 14 Extension sanctioned for immediate dispatch!")}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all"
+                    >
+                      Sanction Route Extension
+                    </button>
+                    <button
+                      onClick={() => setNotificationMsg("Deferred for Syndicate Budgetary Review")}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
+                    >
+                      Defer
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-white">Central Lab 11kV Substation Preventive Maintenance Overhaul</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                        Initiated by: Estate Officer
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Scheduled power shutdown for transformer oil filtration on Sunday 06:00 AM - 12:00 PM. Genset backup active for CS labs.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setNotificationMsg("Executive Clearance Granted: Substation maintenance window notified to all campus heads!")}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all"
+                    >
+                      Approve Maintenance Window
+                    </button>
+                    <button
+                      onClick={() => setNotificationMsg("Maintenance window postponed")}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
+                    >
+                      Reschedule
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cross-Directorate Performance & SLA Health */}
+            <div className="glass-panel rounded-2xl p-6">
+              <h3 className="text-base font-semibold text-white mb-1">Cross-Directorate Operational Desk Status</h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Real-time operational audit across all campus non-academic and academic administrative wings.
+              </p>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
+                <table className="w-full text-xs text-left text-slate-300">
+                  <thead className="text-[11px] uppercase bg-slate-900/90 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Directorate / Authority</th>
+                      <th className="px-4 py-3 font-semibold">Officer In-Charge</th>
+                      <th className="px-4 py-3 font-semibold">Contact / Phone</th>
+                      <th className="px-4 py-3 font-semibold">SLA Adherence</th>
+                      <th className="px-4 py-3 font-semibold">Active Tickets</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-semibold text-sky-400 flex items-center gap-2">
+                        <Bus className="w-4 h-4 text-sky-400" />
+                        Transit & Bus Fleet
+                      </td>
+                      <td className="px-4 py-3 text-white">Rajesh Gowda</td>
+                      <td className="px-4 py-3 font-mono text-slate-400">+91 98450 11002</td>
+                      <td className="px-4 py-3 text-emerald-400 font-semibold">97.2%</td>
+                      <td className="px-4 py-3 text-slate-300">4 Open</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          OPTIMAL
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-semibold text-purple-400 flex items-center gap-2">
+                        <Bed className="w-4 h-4 text-purple-400" />
+                        Residential Life & Hostels
+                      </td>
+                      <td className="px-4 py-3 text-white">Col. Mahendra Singh</td>
+                      <td className="px-4 py-3 font-mono text-slate-400">+91 98450 11003</td>
+                      <td className="px-4 py-3 text-emerald-400 font-semibold">95.1%</td>
+                      <td className="px-4 py-3 text-slate-300">5 Open</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          HEALTHY
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-semibold text-emerald-400 flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-emerald-400" />
+                        Finance & Fee Treasury
+                      </td>
+                      <td className="px-4 py-3 text-white">Dr. K. Raghavan</td>
+                      <td className="px-4 py-3 font-mono text-slate-400">+91 98450 11004</td>
+                      <td className="px-4 py-3 text-emerald-400 font-semibold">98.4%</td>
+                      <td className="px-4 py-3 text-slate-300">1 Open</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          EXCELLENT
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-semibold text-amber-400 flex items-center gap-2">
+                        <Building className="w-4 h-4 text-amber-400" />
+                        Estate & Infrastructure
+                      </td>
+                      <td className="px-4 py-3 text-white">Er. Suresh Kumar</td>
+                      <td className="px-4 py-3 font-mono text-slate-400">+91 98450 11005</td>
+                      <td className="px-4 py-3 text-amber-400 font-semibold">91.8%</td>
+                      <td className="px-4 py-3 text-slate-300">6 Open</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300">
+                          ATTENTION
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-semibold text-indigo-400 flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-indigo-400" />
+                        Computer Science Dept
+                      </td>
+                      <td className="px-4 py-3 text-white">Prof. Sunita Reddy</td>
+                      <td className="px-4 py-3 font-mono text-slate-400">+91 98450 11006</td>
+                      <td className="px-4 py-3 text-emerald-400 font-semibold">96.0%</td>
+                      <td className="px-4 py-3 text-slate-300">2 Open</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          HEALTHY
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PERSONA: TRANSPORT HEAD & BUS FLEET OPERATIONS                            */}
+        {/* ========================================================================= */}
+        {activePersona === "TRANSPORT_HEAD" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                    <Bus className="w-3 h-3" />
+                    TRANSIT OPERATIONS
+                  </span>
+                  <span className="text-xs text-slate-500">•</span>
+                  <span className="text-xs text-slate-400">14 Active College Bus Routes</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Campus Bus Fleet & Logistics Desk</h1>
+                <p className="text-xs text-slate-400">
+                  Directorate of Student & Staff Logistics • 14 Fleet Routes, Live GPS Telemetry & Pass Verification
+                </p>
+              </div>
+
+              <div className="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 border border-sky-500/30">
+                <div className="w-9 h-9 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center">
+                  <Bus className="w-5 h-5 text-sky-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Rajesh Gowda</div>
+                  <div className="text-[11px] text-slate-400">Transport Head • transport.head@apex.edu • +91 98450 11002</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Transport Top 4 KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Active Bus Fleet</span>
+                  <Bus className="w-4 h-4 text-sky-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">22 / 24</div>
+                <p className="text-[11px] text-emerald-400 mt-2 font-medium">22 on route • 2 in depot maintenance</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Schedule Adherence</span>
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">97.2%</div>
+                <p className="text-[11px] text-emerald-400 mt-2 font-medium">Avg peak-hour delay: 3.2 mins</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Active Bus Passes</span>
+                  <CreditCard className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-indigo-400">1,420</div>
+                <p className="text-[11px] text-slate-400 mt-2">RFID validated with Bursar fee dues</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Diesel Fleet Index</span>
+                  <Activity className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">4.2 km/L</div>
+                <p className="text-[11px] text-slate-400 mt-2">Daily campus run: 1,840 km</p>
+              </div>
+            </div>
+
+            {/* Real-time Fleet Telemetry & Live Bus Roster */}
+            <div className="glass-panel rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-white">Real-Time GPS Fleet Telemetry & Route Status</h3>
+                  <p className="text-xs text-slate-400">
+                    Live GPS polling with route waypoints, driver allocations and passenger capacity.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setNotificationMsg("GPS Fleet Telemetry refreshed. All 22 active buses online!")}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center gap-1.5 shadow-md"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Refresh Telemetry
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70">
+                <table className="w-full text-xs text-left text-slate-300">
+                  <thead className="text-[11px] uppercase bg-slate-900/90 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Route & Vehicle #</th>
+                      <th className="px-4 py-3 font-semibold">Origin & Waypoints</th>
+                      <th className="px-4 py-3 font-semibold">Assigned Driver</th>
+                      <th className="px-4 py-3 font-semibold">Current Location</th>
+                      <th className="px-4 py-3 font-semibold">Occupancy</th>
+                      <th className="px-4 py-3 font-semibold">Status / ETA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-medium text-white">
+                        <div className="font-bold text-sky-400">Route 14</div>
+                        <div className="text-[11px] text-slate-400 font-mono">KA-01-F-4012</div>
+                      </td>
+                      <td className="px-4 py-3">Electronic City via Silk Board & BTM</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-medium">Manjunath K.</div>
+                        <div className="text-[10px] text-slate-500 font-mono">+91 98451 44011</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">HSR Layout 14th Main (Waypoint 6/8)</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-semibold">48 / 52 Seats</div>
+                        <div className="w-20 bg-slate-800 rounded-full h-1 mt-1">
+                          <div className="bg-sky-500 h-1 rounded-full" style={{ width: "92%" }} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          ON TIME (ETA 12m)
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-medium text-white">
+                        <div className="font-bold text-sky-400">Route 08</div>
+                        <div className="text-[11px] text-slate-400 font-mono">KA-01-F-4018</div>
+                      </td>
+                      <td className="px-4 py-3">Hebbal Metro Hub via RT Nagar</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-medium">Venkatesh R.</div>
+                        <div className="text-[10px] text-slate-500 font-mono">+91 98451 44012</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">Main Transit Porch, Apex Campus</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-semibold">50 / 50 Seats</div>
+                        <div className="w-20 bg-slate-800 rounded-full h-1 mt-1">
+                          <div className="bg-emerald-500 h-1 rounded-full" style={{ width: "100%" }} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300">
+                          ARRIVED
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-medium text-white">
+                        <div className="font-bold text-sky-400">Route 04</div>
+                        <div className="text-[11px] text-slate-400 font-mono">KA-01-F-4009</div>
+                      </td>
+                      <td className="px-4 py-3">Rajajinagar Metro via Yeshwanthpur</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-medium">Somanna B.</div>
+                        <div className="text-[10px] text-slate-500 font-mono">+91 98451 44013</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">Yeshwanthpur Flyover (Waypoint 3/7)</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-semibold">46 / 52 Seats</div>
+                        <div className="w-20 bg-slate-800 rounded-full h-1 mt-1">
+                          <div className="bg-amber-500 h-1 rounded-full" style={{ width: "88%" }} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300">
+                          DELAYED (+6m)
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/40">
+                      <td className="px-4 py-3 font-medium text-white">
+                        <div className="font-bold text-sky-400">Route 11</div>
+                        <div className="text-[11px] text-slate-400 font-mono">KA-01-F-4022</div>
+                      </td>
+                      <td className="px-4 py-3">Whitefield Tech Park via Marathahalli</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-medium">Altaf Pasha</div>
+                        <div className="text-[10px] text-slate-500 font-mono">+91 98451 44014</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">HAL Main Road (Waypoint 5/9)</td>
+                      <td className="px-4 py-3">
+                        <div className="text-white font-semibold">42 / 50 Seats</div>
+                        <div className="w-20 bg-slate-800 rounded-full h-1 mt-1">
+                          <div className="bg-sky-500 h-1 rounded-full" style={{ width: "84%" }} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          ON TIME (ETA 18m)
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Transport Action & Incident Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-amber-400" />
+                  Active Fleet Maintenance Tickets
+                </h4>
+                <p className="text-xs text-slate-400 mb-3">Mechanical and AC repairs assigned to Depot Garage.</p>
+                <div className="space-y-2 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-white">Ticket #TRN-881: AC Blower Fault in Bus KA-01-F-4012</div>
+                      <div className="text-slate-400 text-[11px]">Reported by: Driver Manjunath K. • SLA: 4h</div>
+                    </div>
+                    <button
+                      onClick={() => setNotificationMsg("Depot mechanic dispatched to Transit Porch for Bus 4012 inspection")}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-all"
+                    >
+                      Dispatch Mechanic
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-indigo-400" />
+                  Student Transit Pass Management
+                </h4>
+                <p className="text-xs text-slate-400 mb-3">Sync RFID passes against student fee dues.</p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setNotificationMsg("Bursar fee synchronization complete: 1,420 RFID passes active, 6 suspended for unpaid transit dues.")}
+                    className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md"
+                  >
+                    Sync Pass Verification with Fee Ledger
+                  </button>
+                  <button
+                    onClick={() => setNotificationMsg("Route 04 Relief Bus #KA-01-F-4024 dispatched from depot!")}
+                    className="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all"
+                  >
+                    Dispatch Standby Bus for Route 04
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PERSONA: HOSTEL WARDEN & CENTRAL DINING DESK                              */}
+        {/* ========================================================================= */}
+        {activePersona === "HOSTEL_WARDEN" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                    <Bed className="w-3 h-3" />
+                    RESIDENTIAL LIFE
+                  </span>
+                  <span className="text-xs text-slate-500">•</span>
+                  <span className="text-xs text-slate-400">Blocks A, B, C & Central Dining</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Chief Residential Warden Desk</h1>
+                <p className="text-xs text-slate-400">
+                  Directorate of Student Housing • Blocks A, B, C & Annapurna Central Dining Operations
+                </p>
+              </div>
+
+              <div className="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 border border-purple-500/30">
+                <div className="w-9 h-9 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+                  <Bed className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Col. Mahendra Singh</div>
+                  <div className="text-[11px] text-slate-400">Chief Hostel Warden • hostel.warden@apex.edu • +91 98450 11003</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Hostel Top 4 KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Hostel Occupancy</span>
+                  <Bed className="w-4 h-4 text-purple-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">1,180 / 1,250</div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 mb-1">
+                  <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: "94.4%" }} />
+                </div>
+                <span className="text-[11px] text-purple-300 font-medium">94.4% Bed Capacity</span>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Annapurna Mess Rating</span>
+                  <Utensils className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-emerald-400">9.6 / 10</div>
+                <p className="text-[11px] text-slate-400 mt-2">FSSAI Certified • Steam Boilers 98°C</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Night Curfew Check-In</span>
+                  <UserCheck className="w-4 h-4 text-sky-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">1,142 In</div>
+                <p className="text-[11px] text-sky-400 mt-2 font-medium">38 Approved Digital Late Passes</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Room Maintenance</span>
+                  <Wrench className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-amber-400">4 Active</div>
+                <p className="text-[11px] text-slate-400 mt-2">Plumbing (2) • Wi-Fi (1) • Carpentry (1)</p>
+              </div>
+            </div>
+
+            {/* Hostel Blocks & Annapurna Dining Dual View */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Residential Blocks Overview */}
+              <div className="glass-panel rounded-2xl p-6">
+                <h3 className="text-base font-semibold text-white mb-1">Residential Blocks Status</h3>
+                <p className="text-xs text-slate-400 mb-4">Live biometric census and resident wardens.</p>
+
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Block A (Senior Boys Wing)</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          100% IN
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        450 Residents • Resident Tutor: Dr. V. Rao • 1 Minor Plumbing Ticket
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setNotificationMsg("Block A biometric night roll call confirmed: 450/450 present.")}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                    >
+                      Verify Roll Call
+                    </button>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Block B (Kasturba Girls Wing)</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          100% IN
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        480 Residents • Resident Warden: Dr. Ananya Sen • Zero Open Tickets
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setNotificationMsg("Block B night roll call verified: 480/480 present. Security perimeter active.")}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                    >
+                      Verify Roll Call
+                    </button>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Block C (Post-Graduate & Scholars)</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300">
+                          38 OUT (PASS)
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        250 Residents • Warden: Prof. K. Joshi • 38 Active Library Late Passes
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setNotificationMsg("Approved 38 Digital Late Passes for Central Research Lab session.")}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-md"
+                    >
+                      Review Passes
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Annapurna Central Dining Inspection Log */}
+              <div className="glass-panel rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Annapurna Dining Hall Daily Inspection</h3>
+                    <p className="text-xs text-slate-400">Nutritional standards, hygiene audit & student feedback.</p>
+                  </div>
+                  <button
+                    onClick={() => setNotificationMsg("Annapurna Dining hygiene logged: 9.6/10. FSSAI water and steam parameters certified!")}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Sign Audit
+                  </button>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-white">Breakfast Session (07:30 - 09:30 AM)</span>
+                      <span className="text-emerald-400 font-bold">Score: 9.8 / 10</span>
+                    </div>
+                    <div className="text-slate-300">Menu: Idli, Medu Vada, Coconut Chutney, Vegetable Sambar, Tea/Coffee</div>
+                    <div className="text-slate-500 text-[11px] mt-1">Steam Boilers Temp: 98°C • Student Satisfaction: 96%</div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-white">Lunch Session (12:30 - 02:30 PM)</span>
+                      <span className="text-emerald-400 font-bold">Score: 9.5 / 10</span>
+                    </div>
+                    <div className="text-slate-300">Menu: Paneer Butter Masala, Tadka Dal, Jeera Rice, Phulkas, Fresh Curd, Salad</div>
+                    <div className="text-slate-500 text-[11px] mt-1">Oil Freshness Checked • No Food Wastage Alert</div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-white">Dinner Session (07:30 - 09:30 PM)</span>
+                      <span className="text-sky-400 font-bold">PREPARING</span>
+                    </div>
+                    <div className="text-slate-300">Menu: Mixed Vegetable Curry, Chapati, Moong Dal Khichdi, Papad, Fruit Custard</div>
+                    <div className="text-slate-500 text-[11px] mt-1">Raw Veg Quality Inspected by Hostel Mess Committee</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PERSONA: BURSAR & CENTRAL FEE TREASURY DESK                               */}
+        {/* ========================================================================= */}
+        {activePersona === "BURSAR_ACCOUNTS" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    CENTRAL FEE TREASURY
+                  </span>
+                  <span className="text-xs text-slate-500">•</span>
+                  <span className="text-xs text-slate-400">GST / SAC 999293 Compliant</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Finance Officer & Fee Treasury Desk</h1>
+                <p className="text-xs text-slate-400">
+                  Directorate of Accounts & Revenue • GST/SAC Compliance, Automated Ledgers & Instant Receipts
+                </p>
+              </div>
+
+              <div className="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 border border-emerald-500/30">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Dr. K. Raghavan</div>
+                  <div className="text-[11px] text-slate-400">Finance Officer & Bursar • bursar@apex.edu • +91 98450 11004</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bursar Top 4 KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Fall 2026 Collection</span>
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">₹14.80 Cr</div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 mb-1">
+                  <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: "91.3%" }} />
+                </div>
+                <span className="text-[11px] text-emerald-400 font-medium">91.3% of ₹16.20 Cr Target</span>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Digital UPI / NetBanking</span>
+                  <CreditCard className="w-4 h-4 text-sky-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-sky-400">83.8%</div>
+                <p className="text-[11px] text-slate-400 mt-2">Zero-reconciliation automated credit</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Pending Bank Challans</span>
+                  <Clock className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-amber-400">14 Queue</div>
+                <p className="text-[11px] text-slate-400 mt-2">Awaiting branch UTR verification</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Exam Fee Clearance</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">98.2%</div>
+                <p className="text-[11px] text-emerald-400 mt-2 font-medium">Semester Hall Tickets Unlocked</p>
+              </div>
+            </div>
+
+            {/* Offline Bank Challan Approvals Queue */}
+            <div className="glass-panel rounded-2xl p-6 border border-emerald-500/30">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-white">Offline Bank Challan Reconciliation Queue</h3>
+                  <p className="text-xs text-slate-400">
+                    Verify physical bank stamped deposit slips, match bank UTR numbers, and instantly generate digital tax receipts.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  2 Pending Verification
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-white">Challan #CH-8820: Sneha M. (Roll: 26CS14)</span>
+                      <span className="text-[10px] font-mono text-slate-400">Bank UTR: SBIN26019942</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                        ₹45,000 (Tuition Due)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      SBI Branch: Jayanagar 4th Block • Deposit Slip Verified by Counter Cashier
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setNotificationMsg("Challan #CH-8820 Approved: Digital Receipt APEX-REC-2026-08103 generated & SMS sent to student Sneha M.!")}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all"
+                    >
+                      Verify UTR & Issue Receipt
+                    </button>
+                    <button className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all">
+                      Hold
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-white">Challan #CH-8824: Rohan Verma (Roll: 26ME08)</span>
+                      <span className="text-[10px] font-mono text-slate-400">Bank UTR: CANA99120448</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                        ₹28,000 (Hostel & Mess)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Canara Bank Campus Extension Counter • Semester Boarding & Dining Fee
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setNotificationMsg("Challan #CH-8824 Approved: Hostel Mess clearance recorded and synced with Warden Desk!")}
+                      className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all"
+                    >
+                      Verify UTR & Issue Receipt
+                    </button>
+                    <button className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all">
+                      Hold
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Treasury Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => setNotificationMsg("Master Fee Reconciliation Ledger exported (CSV format) with 2,420 student entries.")}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2 shadow-md transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Export Treasury Audit Ledger (CSV)
+              </button>
+              <button
+                onClick={() => setNotificationMsg("Automated SMS fee reminders sent to 42 students with pending tuition dues.")}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 transition-all"
+              >
+                <Send className="w-4 h-4 text-sky-400" />
+                Dispatch Automated SMS Due Reminders
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PERSONA: FACILITIES HEAD & CAMPUS INFRASTRUCTURE DESK                     */}
+        {/* ========================================================================= */}
+        {activePersona === "FACILITIES_HEAD" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <Building className="w-3 h-3" />
+                    CAMPUS ESTATE & INFRASTRUCTURE
+                  </span>
+                  <span className="text-xs text-slate-500">•</span>
+                  <span className="text-xs text-slate-400">11kV Substation, RO Plant & Building Management</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Campus Estate, Energy & Infra Command</h1>
+                <p className="text-xs text-slate-400">
+                  Directorate of Engineering & Maintenance • 11kV Power Substation, Diesel Genset, RO Water & HVAC
+                </p>
+              </div>
+
+              <div className="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 border border-amber-500/30">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                  <Building className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Er. Suresh Kumar</div>
+                  <div className="text-[11px] text-slate-400">Estate & Facilities Head • estate.officer@apex.edu • +91 98450 11005</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Facilities Top 4 KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">11kV Substation Grid</span>
+                  <Zap className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">640 kW</div>
+                <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 mb-1">
+                  <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: "64%" }} />
+                </div>
+                <span className="text-[11px] text-emerald-400 font-medium">Grid Stable • 64% of 1,000 kW</span>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Emergency Diesel Genset</span>
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">4,800 L</div>
+                <p className="text-[11px] text-emerald-400 mt-2 font-medium">96% Fuel Tank • 48h Full Runtime</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Central RO Water Purity</span>
+                  <CheckCircle2 className="w-4 h-4 text-sky-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-sky-400">68 ppm</div>
+                <p className="text-[11px] text-slate-400 mt-2">Safe Drinking • Output: 1,200 L/hr</p>
+              </div>
+
+              <div className="glass-panel p-5 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-slate-400">Smart Classrooms AV</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-emerald-400">62 / 64</div>
+                <p className="text-[11px] text-slate-400 mt-2">2 in projector maintenance</p>
+              </div>
+            </div>
+
+            {/* Campus Infrastructure Sub-Systems & Work Orders */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="glass-panel rounded-2xl p-6">
+                <h3 className="text-base font-semibold text-white mb-1">Campus Sub-Systems Telemetry</h3>
+                <p className="text-xs text-slate-400 mb-4">Live instrumentation from electrical, water and solar plants.</p>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-400" />
+                        11kV / 433V Power Substation
+                      </div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">Transformer T1 & T2 • Frequency: 50.02 Hz • Online UPS: 100%</div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">NORMAL</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-sky-400" />
+                        Solar Photovoltaic Rooftop
+                      </div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">120 kW Array on Admin Block • 482 kWh Generated Today</div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300">ACTIVE</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-emerald-400" />
+                        Central Fire Wet-Riser Grid
+                      </div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">Pressure: 7.2 bar • 180 Smoke Detectors Connected</div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">ARMED</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Maintenance Work Orders Dispatch Console */}
+              <div className="glass-panel rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Maintenance Work Orders Console</h3>
+                    <p className="text-xs text-slate-400">Real-time facility tickets dispatched to field technicians.</p>
+                  </div>
+                  <button
+                    onClick={() => setNotificationMsg("Scheduled campus infrastructure health audit initiated across all 4 zones!")}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-500 text-white shadow-md"
+                  >
+                    Trigger Campus Audit
+                  </button>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white">Ticket #EST-402: Seminar Hall 2 LED Batten Overhaul</div>
+                      <div className="text-slate-400 text-[11px]">Assigned to: Electrician B. Gowda • Block 2</div>
+                    </div>
+                    <button
+                      onClick={() => setNotificationMsg("Ticket #EST-402 marked resolved. Re-tested 36W LED fixtures.")}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all"
+                    >
+                      Mark Resolved
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white">Ticket #EST-405: Water Pressure Drop in Block B 3rd Floor</div>
+                      <div className="text-slate-400 text-[11px]">Assigned to: Plumbing Squad • Booster Pump #2</div>
+                    </div>
+                    <button
+                      onClick={() => setNotificationMsg("Plumbing Squad inspection verified. Booster pump pressure restored to 3.8 bar.")}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-all"
+                    >
+                      Verify Inspection
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -4544,190 +5855,411 @@ export default function CampusCarePortal() {
         </div>
       )}
 
-      {/* Google College Sign-In Modal */}
+      {/* Institutional Authentication, Mobile OTP & Real College Onboarding Hub */}
       {showGoogleLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-2xl bg-white mx-auto flex items-center justify-center shadow-lg shadow-sky-500/10">
-                <svg className="w-8 h-8" viewBox="0 0 24 24">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl p-6 sm:p-7 space-y-5 my-8">
+            <div className="text-center space-y-1.5">
+              <div className="w-12 h-12 rounded-2xl bg-white mx-auto flex items-center justify-center shadow-lg shadow-sky-500/10">
+                <svg className="w-7 h-7" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.66-5.17 3.66-9.12z" />
                   <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.27 21.43 7.35 24 12 24z" />
                   <path fill="#FBBC05" d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.13z" />
                   <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.57 1.25 6.58l4.03 3.13c.95-2.83 3.6-4.96 6.72-4.96z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-white tracking-tight">
-                Sign in with Google
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                Apex Institute of Technology
               </h3>
               <p className="text-xs text-slate-400">
-                Institutional Single Sign-On (SSO) with your College Mail ID
+                Institutional Access & Identity Verification Portal
               </p>
             </div>
 
-            {/* Institutional Security Policy Notice */}
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed space-y-1">
-              <div className="font-semibold flex items-center gap-1.5 text-amber-200">
-                <Shield className="w-3.5 h-3.5" />
-                <span>College Domain Policy (Rule NR-5)</span>
-              </div>
-              <p className="text-[11px] text-amber-300/80">
-                Personal emails (<span className="font-mono text-amber-200">@gmail.com</span>, <span className="font-mono text-amber-200">@yahoo.com</span>) are strictly disallowed. You must authenticate with an institutional email (e.g. <span className="font-mono text-amber-200">@apex.edu</span>).
-              </p>
+            {/* 3-Way Mode Switcher Tabs */}
+            <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAuthModalTab("EMAIL_SSO")}
+                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  authModalTab === "EMAIL_SSO"
+                    ? "bg-sky-500 text-white shadow-md shadow-sky-500/25"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <GoogleGIcon />
+                <span>College Email</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthModalTab("MOBILE_OTP")}
+                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  authModalTab === "MOBILE_OTP"
+                    ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 font-bold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Registered Mobile (OTP)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthModalTab("SIGNUP")}
+                className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  authModalTab === "SIGNUP"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/25"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>New Signup</span>
+              </button>
             </div>
 
-            {/* Error Message */}
-            {googleDomainError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                <span>{googleDomainError}</span>
+            {/* TAB 1: COLLEGE EMAIL SSO */}
+            {authModalTab === "EMAIL_SSO" && (
+              <div className="space-y-4">
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed space-y-1">
+                  <div className="font-semibold flex items-center gap-1.5 text-amber-200">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>College Domain Policy (Rule NR-5)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-300/80">
+                    Signing in requires your verified institutional email (e.g. <span className="font-mono text-amber-200 font-bold">@apex.edu</span>). Personal domains (@gmail.com, @yahoo.com) are rejected.
+                  </p>
+                </div>
+
+                {googleDomainError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>{googleDomainError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Select Institutional Authority / Student Account:
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                    {[
+                      { name: "Aarav Sharma", email: "aarav.sharma@apex.edu", role: "Student (Roll: 26CS01)", type: "STUDENT", color: "sky" },
+                      { name: "Dr. S. K. Raman", email: "admin@apex.edu", role: "College Director & Principal", type: "MANAGEMENT", color: "purple" },
+                      { name: "Rajesh Gowda", email: "transport.head@apex.edu", role: "Transport & Bus Fleet Head", type: "TRANSPORT", color: "amber" },
+                      { name: "Col. Mahendra Singh", email: "hostel.warden@apex.edu", role: "Chief Hostel Warden (Blocks & Mess)", type: "HOSTEL", color: "emerald" },
+                      { name: "Dr. K. Raghavan", email: "bursar@apex.edu", role: "Finance Officer & Bursar", type: "BURSAR", color: "sky" },
+                      { name: "Er. Suresh Kumar", email: "estate.officer@apex.edu", role: "Estate & Facilities Head", type: "FACILITIES", color: "teal" },
+                      { name: "Prof. Sunita Reddy", email: "cse.admin@apex.edu", role: "HOD Computer Science", type: "DEPT_ADMIN", color: "pink" },
+                      { name: "Prof. Raghav Rao", email: "prof.rao@apex.edu", role: "Assistant Professor (CSE)", type: "FACULTY", color: "indigo" },
+                    ].map((auth) => (
+                      <button
+                        key={auth.email}
+                        type="button"
+                        onClick={() => handleGoogleCollegeLogin(auth.email, auth.name)}
+                        disabled={isLoggingIn}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all text-left group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-slate-800 text-sky-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            {auth.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-xs text-slate-200 group-hover:text-white leading-tight">
+                              {auth.name}
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-400 leading-tight">
+                              {auth.email}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800/80 text-slate-300 border border-slate-700">
+                          {auth.role}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Or Sign In with Any College Mail ID:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      placeholder="e.g. staff.member@apex.edu"
+                      value={googleEmailInput}
+                      onChange={(e) => setGoogleEmailInput(e.target.value)}
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleGoogleCollegeLogin(googleEmailInput)}
+                      disabled={isLoggingIn || !googleEmailInput.trim()}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-900 hover:bg-slate-200 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      {isLoggingIn ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <GoogleGIcon />}
+                      <span>Sign In</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* 1-Click Fast Institutional Persona Access */}
-            <div className="space-y-2">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Select Verified Institutional Account:
+            {/* TAB 2: REGISTERED MOBILE NUMBER (OTP) */}
+            {authModalTab === "MOBILE_OTP" && (
+              <div className="space-y-4">
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed">
+                  <div className="font-semibold flex items-center gap-1.5 text-amber-200 mb-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Two-Factor Mobile Authentication</span>
+                  </div>
+                  <p className="text-[11px] text-amber-300/80">
+                    Authenticate securely using your mobile number registered with the college registrar/HR portal.
+                  </p>
+                </div>
+
+                {mobileOtpError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>{mobileOtpError}</span>
+                  </div>
+                )}
+
+                {mobileOtpSuccessMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>{mobileOtpSuccessMsg}</span>
+                  </div>
+                )}
+
+                {/* Quick 1-Click Mobile Fill Chips for Real Authorities */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Quick-Select Registered Mobile Numbers:
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { label: "Transport Head", phone: "+919845011002" },
+                      { label: "Hostel Warden", phone: "+919845011003" },
+                      { label: "Bursar Accounts", phone: "+919845011004" },
+                      { label: "Director / Mgmt", phone: "+919845011001" },
+                      { label: "Estate Head", phone: "+919845011005" },
+                      { label: "Student (26CS01)", phone: "+919845022001" },
+                    ].map((item) => (
+                      <button
+                        key={item.phone}
+                        type="button"
+                        onClick={() => {
+                          setMobilePhoneInput(item.phone);
+                          setMobileOtpDispatched(false);
+                          setMobileOtpSuccessMsg(null);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-amber-500/40 text-left text-[11px] transition-all"
+                      >
+                        <div className="text-slate-300 font-semibold">{item.label}</div>
+                        <div className="font-mono text-[10px] text-amber-400/80">{item.phone}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                      Registered Mobile Number:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="+91 98450 11002"
+                        value={mobilePhoneInput}
+                        onChange={(e) => setMobilePhoneInput(e.target.value)}
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendMobileOtp}
+                        disabled={isSendingOtp || !mobilePhoneInput.trim()}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-50 transition-all flex items-center gap-1 shrink-0"
+                      >
+                        {isSendingOtp ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3 h-3" />}
+                        <span>Send OTP</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {mobileOtpDispatched && (
+                    <div className="space-y-2 p-3.5 rounded-2xl bg-slate-950 border border-amber-500/30 animate-fadeIn">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-300">Enter 6-Digit OTP:</span>
+                        <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          Synthetic OTP: 123456
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="123456"
+                          value={mobileOtpInput}
+                          onChange={(e) => setMobileOtpInput(e.target.value)}
+                          className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-center text-sm font-mono tracking-widest text-white focus:outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyMobileOtp}
+                          disabled={isVerifyingOtp || !mobileOtpInput.trim()}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0"
+                        >
+                          {isVerifyingOtp ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          <span>Verify & Log In</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleGoogleCollegeLogin("aarav.sharma@apex.edu", "Aarav Sharma")}
-                  disabled={isLoggingIn}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">
-                      AS
+            {/* TAB 3: NEW STUDENT / STAFF ONBOARDING */}
+            {authModalTab === "SIGNUP" && (
+              <form onSubmit={handleRegisterUser} className="space-y-3.5 text-xs">
+                <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setSignupType("STUDENT")}
+                    className={`flex-1 py-1.5 rounded-lg text-center font-bold transition-all ${
+                      signupType === "STUDENT"
+                        ? "bg-sky-500 text-white shadow"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    🎓 Student Admission
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupType("STAFF")}
+                    className={`flex-1 py-1.5 rounded-lg text-center font-bold transition-all ${
+                      signupType === "STAFF"
+                        ? "bg-purple-600 text-white shadow"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    👔 Staff / Authority
+                  </button>
+                </div>
+
+                {signupError && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>{signupError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Priya Sharma"
+                      value={signupFullName}
+                      onChange={(e) => setSignupFullName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  {signupType === "STUDENT" ? (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">University Roll Number</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 26CS25"
+                        value={signupRollNumber}
+                        onChange={(e) => setSignupRollNumber(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 font-mono text-slate-200 focus:outline-none focus:border-sky-500 uppercase"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">Institutional Administration Role</label>
+                      <select
+                        value={signupStaffRole}
+                        onChange={(e) => setSignupStaffRole(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="COLLEGE_MANAGEMENT">🏛️ College Management (Director / Principal / Dean)</option>
+                        <option value="TRANSPORT_HEAD">🚌 Transport Head (Transit & Bus Fleet)</option>
+                        <option value="HOSTEL_WARDEN">🏢 Chief Hostel Warden (Hostels & Mess)</option>
+                        <option value="BURSAR_ACCOUNTS">💰 Finance Officer & Accounts Bursar</option>
+                        <option value="FACILITIES_HEAD">🛠️ Campus Estate & Facilities Head</option>
+                        <option value="DEPARTMENT_ADMIN">🔬 Department Admin (HOD)</option>
+                        <option value="LECTURER">📚 Academic Faculty / Lecturer</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">Official College Email</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="yourname@apex.edu"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 font-mono text-slate-200 focus:outline-none focus:border-purple-500"
+                      />
                     </div>
                     <div>
-                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
-                        Aarav Sharma
-                      </div>
-                      <div className="text-[11px] font-mono text-slate-400">
-                        aarav.sharma@apex.edu
-                      </div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">Registered Mobile</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="+91 98450 12345"
+                        value={signupPhone}
+                        onChange={(e) => setSignupPhone(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 font-mono text-slate-200 focus:outline-none focus:border-purple-500"
+                      />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                      User Dashboard (Student)
-                    </span>
-                  </div>
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleGoogleCollegeLogin("prof.rao@apex.edu", "Prof. Raghav Rao")}
-                  disabled={isLoggingIn}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs">
-                      RR
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
-                        Prof. Raghav Rao
-                      </div>
-                      <div className="text-[11px] font-mono text-slate-400">
-                        prof.rao@apex.edu
-                      </div>
-                    </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Account Password</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••••••"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-purple-500"
+                    />
                   </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                      User Dashboard (Faculty)
-                    </span>
-                  </div>
-                </button>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleGoogleCollegeLogin("admin@apex.edu", "Dr. S. K. Raman")}
-                  disabled={isLoggingIn}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs">
-                      SK
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
-                        Dr. S. K. Raman (Director)
-                      </div>
-                      <div className="text-[11px] font-mono text-slate-400">
-                        admin@apex.edu
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                      Admin Dashboard
-                    </span>
-                  </div>
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSignup}
+                    className="w-full py-2.5 rounded-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/25 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    {isSubmittingSignup ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                    <span>Complete {signupType === "STUDENT" ? "Student" : "Staff Authority"} Registration</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
-                <button
-                  type="button"
-                  onClick={() => handleGoogleCollegeLogin("cse.admin@apex.edu", "Prof. Sunita Reddy")}
-                  disabled={isLoggingIn}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-pink-500/50 hover:bg-pink-500/5 transition-all text-left group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center font-bold text-xs">
-                      SR
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs text-slate-200 group-hover:text-white">
-                        Prof. Sunita Reddy (HOD CSE)
-                      </div>
-                      <div className="text-[11px] font-mono text-slate-400">
-                        cse.admin@apex.edu
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30">
-                      Admin Dashboard
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Custom College Email Input */}
-            <div className="space-y-3 pt-2 border-t border-slate-800">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                Or Sign In with Any College Mail ID:
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="e.g. yourname@apex.edu"
-                  value={googleEmailInput}
-                  onChange={(e) => setGoogleEmailInput(e.target.value)}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleGoogleCollegeLogin(googleEmailInput)}
-                  disabled={isLoggingIn || !googleEmailInput.trim()}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-900 hover:bg-slate-200 disabled:opacity-50 transition-all flex items-center gap-1.5 shrink-0"
-                >
-                  {isLoggingIn ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <GoogleGIcon />}
-                  <span>Sign In</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-2 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   setShowGoogleLoginModal(false);
                   setGoogleDomainError(null);
+                  setMobileOtpError(null);
+                  setSignupError(null);
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
               >
@@ -4737,6 +6269,7 @@ export default function CampusCarePortal() {
           </div>
         </div>
       )}
+
 
       {/* Access Denied Security Modal (Rule NR-5) */}
       {showAccessDeniedModal && (

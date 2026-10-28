@@ -11,11 +11,149 @@ from src.modules.identity.service import (
     VerifyCodeRequest,
     GoogleLoginRequest,
     GoogleLoginResponse,
+    MobileSendOtpRequest,
+    MobileVerifyOtpRequest,
+    UserRegisterRequest,
     TokenResponse,
     UserResponse,
 )
 
 router = APIRouter(prefix="/auth", tags=["Identity & Authentication"])
+
+
+@router.post("/mobile/send-otp")
+@require_permission("auth:mobile_otp")
+def send_mobile_otp(
+    data: MobileSendOtpRequest,
+    db: Session = Depends(get_app_db),
+    actor: Actor = Depends(get_current_actor),
+):
+    """Dispatches a 6-digit verification OTP to a registered mobile phone number."""
+    decision = authorize(actor, "auth:mobile_otp")
+    if not decision.allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=decision.reason_code)
+
+    try:
+        return IdentityService.send_mobile_otp(db, phone_number=data.phone_number, college_id=data.college_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/mobile/verify-otp", response_model=GoogleLoginResponse)
+@require_permission("auth:mobile_otp")
+def verify_mobile_otp(
+    data: MobileVerifyOtpRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_app_db),
+    actor: Actor = Depends(get_current_actor),
+):
+    """Verifies mobile OTP and creates an authenticated server-side session."""
+    decision = authorize(actor, "auth:mobile_otp")
+    if not decision.allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=decision.reason_code)
+
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    try:
+        user, raw_token, expires_at, dashboard_type, roles = IdentityService.verify_mobile_otp(
+            db,
+            phone_number=data.phone_number,
+            code=data.code,
+            college_id=data.college_id,
+            ip_address=client_ip,
+            user_agent=user_agent,
+        )
+
+        response.set_cookie(
+            key=settings.SESSION_COOKIE_NAME,
+            value=raw_token,
+            httponly=settings.SESSION_COOKIE_HTTPONLY,
+            secure=settings.SESSION_COOKIE_SECURE,
+            samesite=settings.SESSION_COOKIE_SAMESITE,
+            max_age=settings.SESSION_LIFETIME_SECONDS,
+        )
+
+        user_resp = UserResponse(
+            id=user.id,
+            college_id=user.college_id,
+            email=user.email,
+            full_name=user.full_name,
+            phone_number=user.phone_number,
+            roll_number=user.roll_number,
+            is_email_verified=user.is_email_verified,
+            is_mfa_enabled=user.is_mfa_enabled,
+            roles=roles,
+            role_scopes={},
+        )
+
+        return GoogleLoginResponse(
+            session_token=raw_token,
+            expires_at=expires_at,
+            dashboard_type=dashboard_type,
+            user=user_resp,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/register", response_model=GoogleLoginResponse)
+@require_permission("auth:register")
+def register_user(
+    data: UserRegisterRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_app_db),
+    actor: Actor = Depends(get_current_actor),
+):
+    """Comprehensive onboarding for Students and Staff (Transport Head, Warden, Bursar, Management, etc.)."""
+    decision = authorize(actor, "auth:register")
+    if not decision.allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=decision.reason_code)
+
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    try:
+        user, raw_token, expires_at, dashboard_type, roles = IdentityService.register_user(
+            db,
+            data=data,
+            ip_address=client_ip,
+            user_agent=user_agent,
+        )
+
+        response.set_cookie(
+            key=settings.SESSION_COOKIE_NAME,
+            value=raw_token,
+            httponly=settings.SESSION_COOKIE_HTTPONLY,
+            secure=settings.SESSION_COOKIE_SECURE,
+            samesite=settings.SESSION_COOKIE_SAMESITE,
+            max_age=settings.SESSION_LIFETIME_SECONDS,
+        )
+
+        user_resp = UserResponse(
+            id=user.id,
+            college_id=user.college_id,
+            email=user.email,
+            full_name=user.full_name,
+            phone_number=user.phone_number,
+            roll_number=user.roll_number,
+            is_email_verified=user.is_email_verified,
+            is_mfa_enabled=user.is_mfa_enabled,
+            roles=roles,
+            role_scopes={},
+        )
+
+        return GoogleLoginResponse(
+            session_token=raw_token,
+            expires_at=expires_at,
+            dashboard_type=dashboard_type,
+            user=user_resp,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 
 @router.post("/google", response_model=GoogleLoginResponse)

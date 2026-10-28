@@ -28,6 +28,8 @@ PUBLIC_ACTIONS: Set[str] = {
     "auth:verify_code",
     "auth:signup_student",
     "auth:google",
+    "auth:mobile_otp",
+    "auth:register",
     "system:health",
     "complaints:ai_route",
 }
@@ -37,6 +39,11 @@ STAFF_ROLES: Set[str] = {
     "LECTURER",
     "DEPARTMENT_ADMIN",
     "COLLEGE_ADMIN",
+    "COLLEGE_MANAGEMENT",
+    "TRANSPORT_HEAD",
+    "HOSTEL_WARDEN",
+    "BURSAR_ACCOUNTS",
+    "FACILITIES_HEAD",
     "GRIEVANCE_COMMITTEE",
     "PLATFORM_OPERATOR",
 }
@@ -194,17 +201,36 @@ def authorize(
                 return Decision(allowed=False, reason_code="DENY_NOT_CREATOR")
             return Decision(allowed=True, reason_code="ALLOW_CREATOR")
 
-        if "DEPARTMENT_ADMIN" in actor.roles or "COLLEGE_ADMIN" in actor.roles or "LECTURER" in actor.roles:
+        admin_and_staff_roles = (
+            "DEPARTMENT_ADMIN",
+            "COLLEGE_ADMIN",
+            "COLLEGE_MANAGEMENT",
+            "TRANSPORT_HEAD",
+            "HOSTEL_WARDEN",
+            "BURSAR_ACCOUNTS",
+            "FACILITIES_HEAD",
+            "LECTURER",
+        )
+        if any(r in actor.roles for r in admin_and_staff_roles):
             return Decision(allowed=True, reason_code="ALLOW_STAFF")
         return Decision(allowed=False, reason_code="DENY_INSUFFICIENT_ROLE")
 
 
     if action in ("complaints:assign", "complaints:resolve", "complaints:close"):
         if resource.get("is_sensitive"):
-            if "GRIEVANCE_COMMITTEE" in actor.roles or "COLLEGE_ADMIN" in actor.roles:
+            if "GRIEVANCE_COMMITTEE" in actor.roles or "COLLEGE_ADMIN" in actor.roles or "COLLEGE_MANAGEMENT" in actor.roles:
                 return Decision(allowed=True, reason_code="ALLOW_GRIEVANCE_COMMITTEE")
             return Decision(allowed=False, reason_code="DENY_SENSITIVE_COMPLAINT_RESTRICTED")
-        if "DEPARTMENT_ADMIN" in actor.roles or "COLLEGE_ADMIN" in actor.roles:
+        admin_and_staff_roles = (
+            "DEPARTMENT_ADMIN",
+            "COLLEGE_ADMIN",
+            "COLLEGE_MANAGEMENT",
+            "TRANSPORT_HEAD",
+            "HOSTEL_WARDEN",
+            "BURSAR_ACCOUNTS",
+            "FACILITIES_HEAD",
+        )
+        if any(r in actor.roles for r in admin_and_staff_roles):
             return Decision(allowed=True, reason_code="ALLOW_ADMIN")
         return Decision(allowed=False, reason_code="DENY_INSUFFICIENT_ROLE")
 
