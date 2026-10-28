@@ -525,5 +525,28 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  academics: {
+    getLowAttendanceStudents: (threshold?: number) =>
+      request<any[]>(`/academics/attendance/deficit-students${threshold ? `?threshold=${threshold}` : ""}`),
+    getBelowAverageIaStudents: () =>
+      request<any[]>("/academics/ia-marks/below-average-students"),
+    getStudentDiagnostic: (studentQuery: string = "26CS01") =>
+      request<any>(`/academics/student/diagnostic?student_query=${encodeURIComponent(studentQuery)}`),
+    getCatalog: () =>
+      request<any>("/academics/catalog"),
+  },
+  fees: {
+    getDues: (studentRoll: string = "26CS01") =>
+      request<any>(`/fees/dues?student_roll=${encodeURIComponent(studentRoll)}`),
+    getReceipts: (studentRoll: string = "26CS01") =>
+      request<any[]>(`/fees/receipts?student_roll=${encodeURIComponent(studentRoll)}`),
+    payDues: (data: { due_ids: string[]; payment_mode: string; student_roll?: string; upi_id?: string }) =>
+      request<any>("/fees/pay", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    getReceiptDownloadUrl: (receiptNumber: string, studentRoll: string = "26CS01") =>
+      `${API_BASE}/fees/receipts/${receiptNumber}/download?student_roll=${encodeURIComponent(studentRoll)}`,
+  },
 };
 

@@ -36,6 +36,8 @@ services:
       APP_SECRET_KEY: ${APP_SECRET_KEY:-campuscare_production_jwt_cookie_secret_key_2026_xyz}
       CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
       ENVIRONMENT: production
+    volumes:
+      - ./backend:/app
     ports:
       - "8000:8000"
     command: >

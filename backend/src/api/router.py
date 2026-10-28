@@ -10,6 +10,8 @@ from src.modules.knowledge.router import router as knowledge_router
 from src.modules.assistant.router import router as assistant_router
 from src.modules.notifications.router import router as notifications_router
 from src.modules.analytics.router import router as analytics_router
+from src.modules.directory.academics_router import router as academics_router
+from src.modules.fees.router import router as fees_router
 from src.api.dependencies import require_permission
 
 api_router = APIRouter(prefix="/api/v1")
@@ -19,6 +21,8 @@ api_router.include_router(tenancy_router)
 api_router.include_router(identity_router)
 api_router.include_router(access_router)
 api_router.include_router(directory_router)
+api_router.include_router(academics_router)
+api_router.include_router(fees_router)
 api_router.include_router(complaints_router)
 api_router.include_router(feedback_router)
 api_router.include_router(attendance_router)

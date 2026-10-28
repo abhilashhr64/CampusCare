@@ -70,3 +70,34 @@ def chat_with_assistant(
         "draft_action": msg.draft_action_json,
         "created_at": msg.created_at,
     }
+
+
+@router.get("/campus-locations")
+def list_campus_locations():
+    """Lists all registered campus buildings, labs, departments, and amenities."""
+    from src.modules.assistant.wayfinder import CAMPUS_LOCATIONS
+    return [loc.to_dict() for loc in CAMPUS_LOCATIONS.values()]
+
+
+@router.get("/directions")
+def get_campus_directions(
+    origin: str = "MAIN_GATE",
+    destination: str = "LIBRARY_CENTRAL",
+):
+    """Calculates shortest walking path and turn-by-turn walking steps between campus POIs."""
+    from src.modules.assistant.wayfinder import CampusWayfinder, CAMPUS_LOCATIONS
+
+    orig_loc = CampusWayfinder.find_location(origin) or CAMPUS_LOCATIONS.get(origin)
+    dest_loc = CampusWayfinder.find_location(destination) or CAMPUS_LOCATIONS.get(destination)
+
+    if not dest_loc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Campus location '{destination}' could not be identified.",
+        )
+    if not orig_loc:
+        orig_loc = CAMPUS_LOCATIONS.get("MAIN_GATE")
+
+    route = CampusWayfinder.calculate_route(orig_loc.node_id, dest_loc.node_id)
+    return route
+
