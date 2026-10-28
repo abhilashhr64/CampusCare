@@ -236,7 +236,8 @@ def seed_pilot_data():
 
     # 5. Institutional Knowledge Base & Document Ingestion (Rule TN-6, B2)
     with SessionApp() as db:
-        doc = KnowledgeService.create_document(
+        # Academic & Attendance Regulations
+        doc_academic = KnowledgeService.create_document(
             db,
             college_id,
             KnowledgeDocCreate(
@@ -246,11 +247,10 @@ def seed_pilot_data():
                 audience="ALL",
             ),
         )
-
         KnowledgeService.add_chunks(
             db,
             college_id,
-            doc.id,
+            doc_academic.id,
             [
                 ChunkCreate(
                     chunk_index=0,
@@ -264,8 +264,8 @@ def seed_pilot_data():
                 ChunkCreate(
                     chunk_index=1,
                     content=(
-                        "All student grievances regarding facility maintenance, lab equipment, and hostel infrastructure "
-                        "must be resolved within committed service promise SLAs: 24 hours for hostel water/power issues, "
+                        "All student grievances regarding facility maintenance, lab equipment, and academic infrastructure "
+                        "must be resolved within committed service promise SLAs: 24 hours for lab equipment/power issues, "
                         "and 48 hours for general academic and classroom facility requests."
                     ),
                     audience="ALL",
@@ -273,7 +273,156 @@ def seed_pilot_data():
             ],
         )
 
-    print("Ingested Official Knowledge Base with RAG Chunks")
+        # Transport & Transit Fleet Regulations
+        doc_transport = KnowledgeService.create_document(
+            db,
+            college_id,
+            KnowledgeDocCreate(
+                title="Apex Transport & Transit Fleet Manual 2026-27",
+                category="TRANSPORT",
+                source_ref="Office of Transportation - Fleet Operations Section 2.1",
+                audience="ALL",
+            ),
+        )
+        KnowledgeService.add_chunks(
+            db,
+            college_id,
+            doc_transport.id,
+            [
+                ChunkCreate(
+                    chunk_index=0,
+                    content=(
+                        "College bus fleet operates 18 dedicated routes across the metropolitan region. "
+                        "Morning buses arrive at campus by 8:35 AM; evening departures begin strictly at 4:45 PM. "
+                        "Bus pass renewal occurs biannually at the Transport Helpdesk or via the student portal. "
+                        "In case of route delay or bus breakdown, replacement shuttles are dispatched within 20 minutes."
+                    ),
+                    audience="ALL",
+                ),
+                ChunkCreate(
+                    chunk_index=1,
+                    content=(
+                        "Transport complaints regarding driver conduct, rash driving, AC malfunctions, or route delays "
+                        "are monitored under a 24-hour turnaround SLA by the Office of Transportation & Transit Fleet. "
+                        "Students can track real-time bus locations and report transit disruptions directly through CampusCare."
+                    ),
+                    audience="ALL",
+                ),
+            ],
+        )
+
+        # Hostel & Residential Regulations
+        doc_hostel = KnowledgeService.create_document(
+            db,
+            college_id,
+            KnowledgeDocCreate(
+                title="Apex Hostel & Residential Life Handbook 2026-27",
+                category="HOSTEL",
+                source_ref="Chief Warden Board - Residential Guidelines Chapter 5",
+                audience="ALL",
+            ),
+        )
+        KnowledgeService.add_chunks(
+            db,
+            college_id,
+            doc_hostel.id,
+            [
+                ChunkCreate(
+                    chunk_index=0,
+                    content=(
+                        "Hostel campus curfew is 9:30 PM on weekdays and 10:00 PM on weekends. "
+                        "Hot water geysers operate daily during morning hours (5:30 AM to 9:00 AM) and evening hours (5:30 PM to 8:30 PM). "
+                        "Mess rebate of 80 rupees per day is granted for absences exceeding 3 consecutive days with 48-hour prior digital intimation."
+                    ),
+                    audience="ALL",
+                ),
+                ChunkCreate(
+                    chunk_index=1,
+                    content=(
+                        "Residential maintenance issues including electrical tripping, plumbing leaks, room furniture damage, "
+                        "and water cooler filters are assigned a strict 24-hour SLA under the Chief Warden & Residential Housing Board. "
+                        "Emergency issues (water stagnation, power outage) are attended to within 2 hours."
+                    ),
+                    audience="ALL",
+                ),
+            ],
+        )
+
+        # Fee, Accounts & Bursar Charter
+        doc_fee = KnowledgeService.create_document(
+            db,
+            college_id,
+            KnowledgeDocCreate(
+                title="Apex Bursar, Fee & Financial Accounts Charter 2026-27",
+                category="FEE_ACCOUNTS",
+                source_ref="Finance & Accounts Division - Tuition Policy Article 3",
+                audience="ALL",
+            ),
+        )
+        KnowledgeService.add_chunks(
+            db,
+            college_id,
+            doc_fee.id,
+            [
+                ChunkCreate(
+                    chunk_index=0,
+                    content=(
+                        "Semester tuition fee payments must be settled by the 15th of the semester commencement month. "
+                        "A grace period is provided until the 30th with a late fine of 500 rupees; thereafter, 1000 rupees applies. "
+                        "Installment payment plans (up to 3 installments) can be approved upon written request to the Bursar Office."
+                    ),
+                    audience="ALL",
+                ),
+                ChunkCreate(
+                    chunk_index=1,
+                    content=(
+                        "For UPI, NEFT, or Net Banking transactions where amounts are debited from student bank accounts "
+                        "but the ERP portal reflects unpaid status, students should provide the UTR or Transaction Reference number. "
+                        "The Finance & Accounts Bursar Office reconciles bank payment gateway logs within 48 hours and issues official e-receipts."
+                    ),
+                    audience="ALL",
+                ),
+            ],
+        )
+
+        # IT & NOC Computing Infrastructure
+        doc_it = KnowledgeService.create_document(
+            db,
+            college_id,
+            KnowledgeDocCreate(
+                title="Apex Campus IT & Computing Infrastructure Policy 2026-27",
+                category="IT",
+                source_ref="Network Operations Center - User Access Standards",
+                audience="ALL",
+            ),
+        )
+        KnowledgeService.add_chunks(
+            db,
+            college_id,
+            doc_it.id,
+            [
+                ChunkCreate(
+                    chunk_index=0,
+                    content=(
+                        "Campus Wi-Fi (Apex-Secure and eduroam) is available across all academic blocks, hostels, and libraries. "
+                        "Students authenticate using their official institutional email ID and portal password. "
+                        "Password resets and MAC address registrations are serviced by the NOC Helpdesk located in Computing Block A."
+                    ),
+                    audience="ALL",
+                ),
+                ChunkCreate(
+                    chunk_index=1,
+                    content=(
+                        "Advanced AI & High-Performance Computing workstations equipped with NVIDIA GPUs in Lab 3 "
+                        "are accessible to all registered CSE and ECE students. "
+                        "Network dropouts, portal access bugs, or system hardware faults are resolved within 24 hours by Campus IT & NOC."
+                    ),
+                    audience="ALL",
+                ),
+            ],
+        )
+
+    print("Ingested Official Knowledge Base with RAG Chunks across Academics, Transport, Hostel, Fee Accounts, and IT")
 
     # 6. Seed Complaints with Committed SLA & Location Tags
     with SessionApp() as db:

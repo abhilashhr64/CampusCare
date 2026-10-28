@@ -29,6 +29,7 @@ PUBLIC_ACTIONS: Set[str] = {
     "auth:signup_student",
     "auth:google",
     "system:health",
+    "complaints:ai_route",
 }
 
 # Staff roles requiring mandatory MFA (Rule C5, ADR-003)

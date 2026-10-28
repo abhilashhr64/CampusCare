@@ -12,12 +12,110 @@ from src.modules.access.policy import Actor
 
 
 class ComplaintCreate(BaseModel):
-    category: str  # FACILITY, HOSTEL, ACADEMIC, IT, GRIEVANCE_SENSITIVE
+    category: str  # FACILITY, HOSTEL, TRANSPORT, FEE_ACCOUNTS, ACADEMIC, IT, GRIEVANCE_SENSITIVE
     title: str
     description: str
     location_tag: Optional[str] = None  # e.g. "QR:LAB-3-B4"
     is_sensitive: bool = False
     sla_committed_hours: int = 48
+
+
+class ComplaintAiRoutingRequest(BaseModel):
+    problem_text: str
+    location_hint: Optional[str] = None
+
+
+class ComplaintAiRoutingResponse(BaseModel):
+    category: str
+    category_label: str
+    assigned_department_name: str
+    sla_committed_hours: int
+    severity: str  # CRITICAL, HIGH, MEDIUM, LOW
+    confidence_score: float
+    auto_title: str
+    key_entities: List[str]
+    is_sensitive: bool
+    routing_reasoning: str
+
+
+ROUTING_PROFILES: Dict[str, Dict[str, Any]] = {
+    "TRANSPORT": {
+        "keywords": [
+            "bus", "transport", "driver", "route", "shuttle", "commute", "pickup", "drop",
+            "traffic", "transit", "vehicle", "breakdown", "flat tire", "conductor", "bus stop",
+            "city junction", "college bus", "bus pass"
+        ],
+        "label": "Transport & College Bus Fleet",
+        "department": "Office of Transportation & Transit Fleet",
+        "sla_hours": 24,
+        "base_severity": "HIGH",
+    },
+    "HOSTEL": {
+        "keywords": [
+            "hostel", "geyser", "hot water", "warden", "mess", "food", "room", "bed", "bathroom",
+            "washroom", "plumbing", "tap", "flush", "water leak", "noise", "roommate", "curfew",
+            "hostel block", "laundry", "iron box", "mess rebate"
+        ],
+        "label": "Hostel & Residential Life",
+        "department": "Chief Warden & Residential Housing Board",
+        "sla_hours": 24,
+        "base_severity": "HIGH",
+    },
+    "FEE_ACCOUNTS": {
+        "keywords": [
+            "fee", "tuition", "fees", "payment", "receipt", "bursar", "account", "transaction",
+            "upi", "net banking", "debit card", "debited", "scholarship", "fine", "dues",
+            "installment", "refund", "balance statement", "challan", "unpaid in portal"
+        ],
+        "label": "Fee, Bursar & Finance Accounts",
+        "department": "Finance, Accounts & Bursar Office",
+        "sla_hours": 48,
+        "base_severity": "HIGH",
+    },
+    "ACADEMIC": {
+        "keywords": [
+            "attendance", "attendance percentage", "cutoff", "credit", "professor", "lecturer",
+            "marks", "internal", "midsem", "grade", "gpa", "exam", "hall ticket", "revaluation",
+            "syllabus", "timetable", "class clash", "section change", "elective", "condonation"
+        ],
+        "label": "Academic & Examination Affairs",
+        "department": "Dean of Academic Affairs & Registrar",
+        "sla_hours": 72,
+        "base_severity": "MEDIUM",
+    },
+    "IT": {
+        "keywords": [
+            "wifi", "wi-fi", "internet", "network", "ethernet", "router", "lan", "login",
+            "portal", "password", "gpu", "graphics card", "nvidia", "workstation", "pc",
+            "computer", "monitor", "keyboard", "mouse", "server", "linux", "crash"
+        ],
+        "label": "Campus IT & Computing Infrastructure",
+        "department": "Campus IT & Network Operations Center (NOC)",
+        "sla_hours": 24,
+        "base_severity": "MEDIUM",
+    },
+    "FACILITY": {
+        "keywords": [
+            "projector", "hdmi", "screen", "ac", "air conditioner", "fan", "light", "switch",
+            "bench", "chair", "desk", "blackboard", "chalkboard", "door", "window", "elevator",
+            "lift", "dustbin", "cleanliness", "water cooler", "water filter", "podium", "audio"
+        ],
+        "label": "Campus Infrastructure & Maintenance",
+        "department": "Estate & Physical Maintenance Office",
+        "sla_hours": 48,
+        "base_severity": "LOW",
+    },
+    "GRIEVANCE_SENSITIVE": {
+        "keywords": [
+            "harassment", "ragging", "threat", "discriminate", "abuse", "assault", "mental health",
+            "bullying", "stalking", "blackmail", "confidential", "suicide", "depression"
+        ],
+        "label": "Confidential Grievance Committee",
+        "department": "Internal Complaints Committee (ICC) & Ombudsman",
+        "sla_hours": 12,
+        "base_severity": "CRITICAL",
+    },
+}
 
 
 class AssignComplaintRequest(BaseModel):
@@ -339,3 +437,155 @@ class ComplaintsService:
             )
         )
         return [ComplaintResponse.model_validate(c) for c in db.scalars(stmt).all()]
+
+    @staticmethod
+    def ai_route_complaint(
+        problem_text: str,
+        location_hint: Optional[str] = None,
+    ) -> ComplaintAiRoutingResponse:
+        """Intelligently classifies natural language student problem text, extracts entities,
+        predicts target campus department, commits SLA hours, and assesses urgency/sensitivity.
+        """
+        import re
+
+        text_lower = (problem_text or "").lower()
+        hint_lower = (location_hint or "").lower()
+        combined_text = f"{text_lower} {hint_lower}"
+
+        # 1. Entity Extraction
+        entities = []
+        bus_match = re.findall(r"(?:bus|route)\s*(?:route|no|bus|number|#)?\s*([0-9]+[a-zA-Z]?)", text_lower)
+        if bus_match:
+            entities.append(f"Transit Route/Bus: {bus_match[0].upper()}")
+
+        room_match = re.findall(r"(?:room|hostel|block)\s*#?\s*([0-9a-zA-Z]+)", text_lower)
+        if room_match:
+            entities.append(f"Hostel/Room: {room_match[0].upper()}")
+
+        txn_match = re.findall(r"(?:txn|transaction|ref|upi|utr|challan)\s*[:#]?\s*([0-9a-zA-Z]{6,})", text_lower)
+        if txn_match:
+            entities.append(f"Transaction Ref: {txn_match[0].upper()}")
+
+        lab_match = re.findall(r"(?:lab|pc|system|station)\s*#?\s*([0-9a-zA-Z]+)", text_lower)
+        if lab_match:
+            entities.append(f"Lab Resource: {lab_match[0].upper()}")
+
+        if location_hint:
+            entities.append(f"Location Tag: {location_hint}")
+
+        # 2. Check for Sensitive Grievance first (harassment, ragging, threat, abuse)
+        sensitive_kw = ROUTING_PROFILES["GRIEVANCE_SENSITIVE"]["keywords"]
+        matched_sensitive = [kw for kw in sensitive_kw if kw in combined_text]
+        if matched_sensitive:
+            return ComplaintAiRoutingResponse(
+                category="GRIEVANCE_SENSITIVE",
+                category_label="Confidential Grievance Committee",
+                assigned_department_name="Internal Complaints Committee (ICC) & Ombudsman",
+                sla_committed_hours=12,
+                severity="CRITICAL",
+                confidence_score=0.98,
+                auto_title="Confidential Grievance: Urgent ICC Intervention Requested",
+                key_entities=entities,
+                is_sensitive=True,
+                routing_reasoning=(
+                    "Natural language analysis identified sensitive grievance indicators "
+                    f"({', '.join(matched_sensitive)}). Automatically shielded and rerouted "
+                    "directly to the Internal Complaints Committee (ICC) & Ombudsman with 12-hour statutory SLA."
+                ),
+            )
+
+        # 3. Score against remaining profiles
+        category_scores: Dict[str, float] = {}
+        matched_words_by_cat: Dict[str, List[str]] = {}
+        for cat, prof in ROUTING_PROFILES.items():
+            if cat == "GRIEVANCE_SENSITIVE":
+                continue
+            matches = [kw for kw in prof["keywords"] if kw in combined_text]
+            matched_words_by_cat[cat] = matches
+            score = 0.0
+            for m in matches:
+                # Longer keywords give higher discriminatory weight
+                score += 1.0 + (len(m.split()) * 0.5)
+            # Extra boost if location hint aligns with category
+            if cat == "HOSTEL" and any(k in hint_lower for k in ["hostel", "block", "room", "mess"]):
+                score += 2.0
+            elif cat == "TRANSPORT" and any(k in hint_lower for k in ["bus", "route", "stop", "transit"]):
+                score += 2.0
+            elif cat == "IT" and any(k in hint_lower for k in ["lab", "noc", "server"]):
+                score += 2.0
+            category_scores[cat] = score
+
+        # Find best category
+        best_cat = max(category_scores, key=lambda k: category_scores[k])
+        max_score = category_scores[best_cat]
+
+        if max_score <= 0.0:
+            best_cat = "FACILITY"
+            confidence = 0.65
+        else:
+            confidence = min(0.96, 0.70 + (max_score * 0.06))
+
+        profile = ROUTING_PROFILES[best_cat]
+        base_severity = profile["base_severity"]
+        sla_hours = profile["sla_hours"]
+
+        # 4. Urgency Modifiers
+        urgency_markers = [
+            "emergency", "urgent", "immediate", "fire", "danger", "spark", "leak", "flood",
+            "critical", "stolen", "exam tomorrow", "deadline today", "no power", "blackout"
+        ]
+        found_urgency = [u for u in urgency_markers if u in text_lower]
+        if found_urgency:
+            if base_severity == "LOW":
+                base_severity = "MEDIUM"
+                sla_hours = min(sla_hours, 24)
+            elif base_severity == "MEDIUM":
+                base_severity = "HIGH"
+                sla_hours = min(sla_hours, 24)
+            elif base_severity == "HIGH":
+                base_severity = "CRITICAL"
+                sla_hours = min(sla_hours, 12)
+
+        # 5. Synthesize Auto-Title
+        clean_first = (problem_text.strip().split(".")[0] or problem_text.strip())[:65]
+        if best_cat == "TRANSPORT":
+            route_str = f" ({bus_match[0].upper()})" if bus_match else ""
+            auto_title = f"Transport Fleet Delay/Issue{route_str}: {clean_first}"
+        elif best_cat == "HOSTEL":
+            room_str = f" ({room_match[0].upper()})" if room_match else ""
+            auto_title = f"Hostel Residential Disruption{room_str}: {clean_first}"
+        elif best_cat == "FEE_ACCOUNTS":
+            auto_title = f"Fee & Accounts Reconciliation: {clean_first}"
+        elif best_cat == "IT":
+            auto_title = f"Campus IT Network Alert: {clean_first}"
+        elif best_cat == "ACADEMIC":
+            auto_title = f"Academic & Attendance Inquiry: {clean_first}"
+        else:
+            auto_title = f"Campus Maintenance Request: {clean_first}"
+
+        auto_title = auto_title.strip()
+        if len(auto_title) > 100:
+            auto_title = auto_title[:97] + "..."
+
+        # 6. Synthesize Reasoning
+        matches_found = matched_words_by_cat.get(best_cat, [])
+        kw_preview = f"keywords [{', '.join(matches_found[:3])}]" if matches_found else "context analysis"
+        urgency_note = f" Escalated to {base_severity} due to urgency signals ({', '.join(found_urgency)})." if found_urgency else ""
+        routing_reasoning = (
+            f"AI classification identified {profile['label']} based on {kw_preview}. "
+            f"Automatically targeted to {profile['department']} with a {sla_hours}-hour turnaround SLA commitment.{urgency_note}"
+        )
+
+        return ComplaintAiRoutingResponse(
+            category=best_cat,
+            category_label=profile["label"],
+            assigned_department_name=profile["department"],
+            sla_committed_hours=sla_hours,
+            severity=base_severity,
+            confidence_score=round(confidence, 2),
+            auto_title=auto_title,
+            key_entities=entities,
+            is_sensitive=False,
+            routing_reasoning=routing_reasoning,
+        )
+

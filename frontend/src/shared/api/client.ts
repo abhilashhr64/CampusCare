@@ -99,6 +99,19 @@ export interface Complaint {
   updated_at: string;
 }
 
+export interface ComplaintAiRoutingResponse {
+  category: string;
+  category_label: string;
+  assigned_department_name: string;
+  sla_committed_hours: number;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  confidence_score: number;
+  auto_title: string;
+  key_entities: string[];
+  is_sensitive: boolean;
+  routing_reasoning: string;
+}
+
 export interface FeedbackCycle {
   id: string;
   college_id: string;
@@ -394,7 +407,12 @@ export const api = {
         body: JSON.stringify(data),
       }),
     confirm: (id: string, data: { student_confirmed: boolean; feedback_rating?: number; feedback_comment?: string }) =>
-      request<Complaint>(`/complaints/${id}/confirm`, {
+      request<Complaint>(`/complaints/${id}/closed-loop-confirm`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    aiRoute: (data: { problem_text: string; location_hint?: string }) =>
+      request<ComplaintAiRoutingResponse>("/complaints/ai-route", {
         method: "POST",
         body: JSON.stringify(data),
       }),

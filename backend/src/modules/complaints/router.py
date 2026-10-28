@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from src.core.database import get_app_db
@@ -12,9 +12,31 @@ from src.modules.complaints.service import (
     AssignComplaintRequest,
     ResolveComplaintRequest,
     ResolutionConfirmRequest,
+    ComplaintAiRoutingRequest,
+    ComplaintAiRoutingResponse,
 )
 
 router = APIRouter(prefix="/complaints", tags=["Complaints & Service Promise"])
+
+
+@router.post("/ai-route", response_model=ComplaintAiRoutingResponse)
+@require_permission("complaints:ai_route")
+def ai_route_complaint(
+    data: ComplaintAiRoutingRequest,
+    actor: Optional[Actor] = Depends(get_current_actor),
+):
+    """Real-time AI complaint routing engine.
+    Analyzes natural language student problem text, extracts entities,
+    determines the destination office, and estimates turnaround SLA.
+    """
+    decision = authorize(actor, "complaints:ai_route")
+    if not decision.allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=decision.reason_code)
+
+    return ComplaintsService.ai_route_complaint(
+        problem_text=data.problem_text,
+        location_hint=data.location_hint,
+    )
 
 
 @router.post("", response_model=ComplaintResponse, status_code=status.HTTP_201_CREATED)
@@ -129,3 +151,16 @@ def confirm_or_reopen_resolution(
         return ComplaintsService.confirm_or_reopen(db, actor.college_id, complaint_id, actor.user_id, data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/{complaint_id}/confirm", response_model=ComplaintResponse)
+@require_permission("complaints:create")
+def confirm_resolution_alias(
+    complaint_id: uuid.UUID,
+    data: ResolutionConfirmRequest,
+    db: Session = Depends(get_app_db),
+    actor: Actor = Depends(get_current_actor),
+):
+    """Alias for closed-loop confirmation."""
+    return confirm_or_reopen_resolution(complaint_id, data, db, actor)
+

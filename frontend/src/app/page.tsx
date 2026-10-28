@@ -165,11 +165,24 @@ export default function CampusCarePortal() {
 
   // Complaints & Grievances State (Rule B3: Service Promise & Closed-Loop Resolution)
   const [showComplaintModal, setShowComplaintModal] = useState<boolean>(false);
-  const [complaintCategory, setComplaintCategory] = useState<string>("FACILITY");
+  const [complaintCategory, setComplaintCategory] = useState<string>("TRANSPORT");
   const [complaintTitle, setComplaintTitle] = useState<string>("");
   const [complaintDesc, setComplaintDesc] = useState<string>("");
-  const [complaintLocation, setComplaintLocation] = useState<string>("QR:LAB-BLOCK-302");
+  const [complaintLocation, setComplaintLocation] = useState<string>("QR:TRANSIT-FLEET-R14");
   const [complaintIsSensitive, setComplaintIsSensitive] = useState<boolean>(false);
+  const [aiRoutingResult, setAiRoutingResult] = useState<{
+    category: string;
+    category_label: string;
+    assigned_department_name: string;
+    sla_committed_hours: number;
+    severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+    confidence_score: number;
+    auto_title: string;
+    key_entities: string[];
+    is_sensitive: boolean;
+    routing_reasoning: string;
+  } | null>(null);
+  const [isAiRouting, setIsAiRouting] = useState<boolean>(false);
   const [complaintsList, setComplaintsList] = useState<Array<{
     id: string;
     ticket_number: string;
@@ -182,7 +195,37 @@ export default function CampusCarePortal() {
     is_sensitive: boolean;
     student_confirmed: boolean | null;
     feedback_rating?: number;
+    assigned_department_name?: string;
+    severity?: string;
   }>>([
+    {
+      id: "c-104",
+      ticket_number: "CC-1031",
+      title: "Bus Route 14 AC Breakdown & Schedule Delay",
+      category: "TRANSPORT",
+      location_tag: "QR:TRANSIT-FLEET-R14",
+      status: "ASSIGNED",
+      sla_committed_hours: 24,
+      hours_remaining: 18,
+      is_sensitive: false,
+      student_confirmed: null,
+      assigned_department_name: "Office of Transportation & Transit Fleet",
+      severity: "HIGH",
+    },
+    {
+      id: "c-105",
+      ticket_number: "CC-1032",
+      title: "Semester 5 Tuition Fee UPI Paid but Portal Unpaid",
+      category: "FEE_ACCOUNTS",
+      location_tag: "QR:BURSAR-FINANCE",
+      status: "SUBMITTED",
+      sla_committed_hours: 48,
+      hours_remaining: 44,
+      is_sensitive: false,
+      student_confirmed: null,
+      assigned_department_name: "Finance, Accounts & Bursar Office",
+      severity: "HIGH",
+    },
     {
       id: "c-101",
       ticket_number: "CC-1024",
@@ -194,6 +237,8 @@ export default function CampusCarePortal() {
       hours_remaining: 32,
       is_sensitive: false,
       student_confirmed: null,
+      assigned_department_name: "Estate & Physical Maintenance Office",
+      severity: "LOW",
     },
     {
       id: "c-102",
@@ -206,6 +251,8 @@ export default function CampusCarePortal() {
       hours_remaining: 11,
       is_sensitive: false,
       student_confirmed: null,
+      assigned_department_name: "Chief Warden & Residential Housing Board",
+      severity: "HIGH",
     },
     {
       id: "c-103",
@@ -219,6 +266,8 @@ export default function CampusCarePortal() {
       is_sensitive: false,
       student_confirmed: true,
       feedback_rating: 5,
+      assigned_department_name: "Campus IT & Network Operations Center (NOC)",
+      severity: "MEDIUM",
     },
   ]);
 
@@ -429,26 +478,215 @@ export default function CampusCarePortal() {
     }
   };
 
-  const handleCreateComplaint = () => {
-    if (!complaintTitle.trim() || !complaintDesc.trim()) return;
+  const predictClientAiRoute = (text: string, locHint?: string) => {
+    const combined = (text + " " + (locHint || "")).toLowerCase();
+
+    // 1. Check for Sensitive Grievance first
+    const sensitiveKws = ["harassment", "ragging", "threat", "abuse", "assault", "blackmail", "mental health", "bullying", "suicide"];
+    const matchedSens = sensitiveKws.filter((k) => combined.includes(k));
+    if (matchedSens.length > 0) {
+      return {
+        category: "GRIEVANCE_SENSITIVE",
+        category_label: "Confidential Grievance Committee",
+        assigned_department_name: "Internal Complaints Committee (ICC) & Ombudsman",
+        sla_committed_hours: 12,
+        severity: "CRITICAL" as const,
+        confidence_score: 0.98,
+        auto_title: "Confidential Grievance: Urgent ICC Intervention Requested",
+        key_entities: ["Statutory Protection", ...matchedSens],
+        is_sensitive: true,
+        routing_reasoning: `Shielded and routed directly to the ICC Ombudsman with 12h SLA due to sensitivity tokens: [${matchedSens.join(", ")}].`,
+      };
+    }
+
+    // 2. Transport check
+    const transportKws = ["bus", "transport", "route", "driver", "shuttle", "commute", "pickup", "drop", "transit", "vehicle", "breakdown", "flat tire", "conductor", "bus stop"];
+    const matchedTrans = transportKws.filter((k) => combined.includes(k));
+    if (matchedTrans.length > 0 || (locHint && locHint.toLowerCase().includes("transit"))) {
+      const routeMatch = text.match(/(?:bus|route)\s*(?:route|no|bus|number|#)?\s*([0-9]+[a-zA-Z]?)/i);
+      const routeTag = routeMatch ? ` (Route ${routeMatch[1].toUpperCase()})` : "";
+      return {
+        category: "TRANSPORT",
+        category_label: "Transport & College Bus Fleet",
+        assigned_department_name: "Office of Transportation & Transit Fleet",
+        sla_committed_hours: 24,
+        severity: "HIGH" as const,
+        confidence_score: 0.96,
+        auto_title: `Transport Fleet Delay${routeTag}: ${text.slice(0, 50).trim()}`,
+        key_entities: ["Transit Fleet", ...(routeMatch ? [`Route ${routeMatch[1].toUpperCase()}`] : matchedTrans.slice(0, 2))],
+        is_sensitive: false,
+        routing_reasoning: `AI matched transport tokens [${matchedTrans.join(", ") || "transit"}]. Routed to Office of Transportation & Transit Fleet with 24h SLA.`,
+      };
+    }
+
+    // 3. Fee & Bursar check
+    const feeKws = ["fee", "tuition", "fees", "payment", "receipt", "bursar", "account", "transaction", "upi", "net banking", "debited", "scholarship", "challan", "dues", "utr"];
+    const matchedFee = feeKws.filter((k) => combined.includes(k));
+    if (matchedFee.length > 0 || (locHint && locHint.toLowerCase().includes("bursar"))) {
+      const utrMatch = text.match(/(?:utr|txn|ref)\s*[:#]?\s*([0-9a-zA-Z]{6,})/i);
+      return {
+        category: "FEE_ACCOUNTS",
+        category_label: "Fee, Bursar & Finance Accounts",
+        assigned_department_name: "Finance, Accounts & Bursar Office",
+        sla_committed_hours: 48,
+        severity: "HIGH" as const,
+        confidence_score: 0.95,
+        auto_title: `Fee Accounts Reconciliation: ${text.slice(0, 50).trim()}`,
+        key_entities: ["Finance / Bursar", ...(utrMatch ? [`Ref: ${utrMatch[1].toUpperCase()}`] : matchedFee.slice(0, 2))],
+        is_sensitive: false,
+        routing_reasoning: `AI matched payment gateway & bursar reconciliation tokens [${matchedFee.join(", ") || "fee"}]. Routed to Finance Office with 48h SLA.`,
+      };
+    }
+
+    // 4. Hostel check
+    const hostelKws = ["hostel", "geyser", "hot water", "warden", "mess", "food", "room", "bed", "bathroom", "washroom", "plumbing", "tap", "flush", "water leak", "noise", "roommate", "curfew", "block"];
+    const matchedHostel = hostelKws.filter((k) => combined.includes(k));
+    if (matchedHostel.length > 0 || (locHint && locHint.toLowerCase().includes("hostel"))) {
+      const roomMatch = text.match(/(?:room|block)\s*#?\s*([0-9a-zA-Z]+)/i);
+      return {
+        category: "HOSTEL",
+        category_label: "Hostel & Residential Life",
+        assigned_department_name: "Chief Warden & Residential Housing Board",
+        sla_committed_hours: 24,
+        severity: "HIGH" as const,
+        confidence_score: 0.94,
+        auto_title: `Hostel Disruption: ${text.slice(0, 50).trim()}`,
+        key_entities: ["Residential Block", ...(roomMatch ? [`Room/Block: ${roomMatch[1].toUpperCase()}`] : matchedHostel.slice(0, 2))],
+        is_sensitive: false,
+        routing_reasoning: `AI matched living amenities tokens [${matchedHostel.join(", ") || "hostel"}]. Routed to Chief Warden Housing Board with 24h SLA.`,
+      };
+    }
+
+    // 5. IT check
+    const itKws = ["wifi", "wi-fi", "internet", "network", "ethernet", "router", "lan", "login", "portal", "password", "gpu", "workstation", "pc", "computer", "server", "linux"];
+    const matchedIt = itKws.filter((k) => combined.includes(k));
+    if (matchedIt.length > 0 || (locHint && locHint.toLowerCase().includes("lab"))) {
+      return {
+        category: "IT",
+        category_label: "Campus IT & Computing Infrastructure",
+        assigned_department_name: "Campus IT & Network Operations Center (NOC)",
+        sla_committed_hours: 24,
+        severity: "MEDIUM" as const,
+        confidence_score: 0.93,
+        auto_title: `Campus IT Network Alert: ${text.slice(0, 50).trim()}`,
+        key_entities: ["Computing NOC", ...matchedIt.slice(0, 2)],
+        is_sensitive: false,
+        routing_reasoning: `AI detected computing infrastructure & network terms [${matchedIt.join(", ") || "it"}]. Dispatched to Campus IT NOC with 24h SLA.`,
+      };
+    }
+
+    // 6. Academic check
+    const acadKws = ["attendance", "credit", "marks", "professor", "lecturer", "exam", "hall ticket", "grade", "gpa", "syllabus", "timetable", "class clash"];
+    const matchedAcad = acadKws.filter((k) => combined.includes(k));
+    if (matchedAcad.length > 0) {
+      return {
+        category: "ACADEMIC",
+        category_label: "Academic & Examination Affairs",
+        assigned_department_name: "Dean of Academic Affairs & Registrar",
+        sla_committed_hours: 72,
+        severity: "MEDIUM" as const,
+        confidence_score: 0.91,
+        auto_title: `Academic Grievance: ${text.slice(0, 50).trim()}`,
+        key_entities: ["Academic Affairs", ...matchedAcad.slice(0, 2)],
+        is_sensitive: false,
+        routing_reasoning: `AI detected academic governance terms [${matchedAcad.join(", ")}]. Dispatched to Dean of Academic Affairs with 72h SLA.`,
+      };
+    }
+
+    // Default Facility
+    return {
+      category: "FACILITY",
+      category_label: "Campus Infrastructure & Maintenance",
+      assigned_department_name: "Estate & Physical Maintenance Office",
+      sla_committed_hours: 48,
+      severity: "LOW" as const,
+      confidence_score: 0.78,
+      auto_title: `Maintenance Request: ${text.slice(0, 50).trim() || "Physical Infrastructure"}`,
+      key_entities: ["Physical Infrastructure"],
+      is_sensitive: false,
+      routing_reasoning: "AI categorized under Campus Infrastructure & Maintenance. Dispatched to Estate Office with standard 48h SLA.",
+    };
+  };
+
+  const handleTriggerAiRouting = async (text: string, locHint?: string) => {
+    if (!text.trim()) {
+      setAiRoutingResult(null);
+      return;
+    }
+    // Instant heuristic feedback (0ms)
+    const localPrediction = predictClientAiRoute(text, locHint || complaintLocation);
+    setAiRoutingResult(localPrediction);
+    setComplaintCategory(localPrediction.category);
+    setComplaintTitle(localPrediction.auto_title);
+    setComplaintIsSensitive(localPrediction.is_sensitive);
+
+    // Asynchronously call backend AI auto-routing endpoint
+    setIsAiRouting(true);
+    try {
+      const serverResult = await api.complaints.aiRoute({
+        problem_text: text,
+        location_hint: locHint || complaintLocation,
+      });
+      if (serverResult && serverResult.category) {
+        setAiRoutingResult(serverResult);
+        setComplaintCategory(serverResult.category);
+        setComplaintTitle(serverResult.auto_title);
+        setComplaintIsSensitive(serverResult.is_sensitive);
+      }
+    } catch {
+      // Keep localPrediction on network failure
+    } finally {
+      setIsAiRouting(false);
+    }
+  };
+
+  const handleCreateComplaint = async () => {
+    if (!complaintDesc.trim()) return;
+
+    // Run routing if not yet computed
+    const route = aiRoutingResult || predictClientAiRoute(complaintDesc, complaintLocation);
+    const finalTitle = complaintTitle.trim() || route.auto_title;
+    const finalSla = route.sla_committed_hours || 48;
+    const finalCat = route.category || complaintCategory;
+    const finalDept = route.assigned_department_name || "Campus Administration";
+
     const newTicket = {
       id: "c-" + Date.now(),
-      ticket_number: `CC-${1025 + complaintsList.length}`,
-      title: complaintTitle,
-      category: complaintCategory,
+      ticket_number: `CC-${1033 + complaintsList.length}`,
+      title: finalTitle,
+      category: finalCat,
       location_tag: complaintLocation,
       status: "SUBMITTED" as const,
-      sla_committed_hours: 48,
-      hours_remaining: 48,
-      is_sensitive: complaintIsSensitive,
+      sla_committed_hours: finalSla,
+      hours_remaining: finalSla,
+      is_sensitive: route.is_sensitive || complaintIsSensitive,
       student_confirmed: null,
+      assigned_department_name: finalDept,
+      severity: route.severity,
     };
+
     setComplaintsList([newTicket, ...complaintsList]);
     setShowComplaintModal(false);
     setComplaintTitle("");
     setComplaintDesc("");
+    setAiRoutingResult(null);
+
+    // Call backend API in background
+    try {
+      await api.complaints.create({
+        category: finalCat,
+        title: finalTitle,
+        description: complaintDesc,
+        location_tag: complaintLocation,
+        is_sensitive: route.is_sensitive,
+        sla_committed_hours: finalSla,
+      });
+    } catch {
+      // Local state is preserved
+    }
+
     setNotificationMsg(
-      `Complaint ${newTicket.ticket_number} created with 48h Service Promise SLA (Rule B3)! Location: ${newTicket.location_tag}`
+      `Ticket ${newTicket.ticket_number} auto-routed by AI to "${finalDept}" with ${finalSla}h guaranteed turnaround SLA!`
     );
     setTimeout(() => setNotificationMsg(null), 6000);
   };
@@ -543,20 +781,62 @@ export default function CampusCarePortal() {
     setTimeout(() => {
       const qLower = q.toLowerCase();
       if (activeTenant === "APEX") {
-        if (qLower.includes("curfew") || qLower.includes("hostel") || qLower.includes("night")) {
+        if (qLower.includes("bus") || qLower.includes("transport") || qLower.includes("shuttle") || qLower.includes("route") || qLower.includes("pass")) {
           setAiChatMessages((prev) => [
             ...prev,
             {
               id: `ai-${Date.now()}`,
               role: "ASSISTANT",
               content:
-                "According to verified institutional policy in **Apex Hostel Living Guidelines** (Hostel Code Annexure C):\n\n> Night curfew for all undergraduate residential hostels is strictly 10:30 PM. Late entry requires prior written approval from the resident warden.\n\nInstitutional Reference Citation: `[Apex Hostel Living Guidelines - Hostel Code Annexure C]`",
+                "According to verified institutional policy in **Apex Transport & Transit Fleet Manual 2026-27** (Office of Transportation - Fleet Operations Section 2.1):\n\n> The college bus fleet operates 18 dedicated routes across the metropolitan region. Morning buses arrive on campus by 8:35 AM; evening departures begin strictly at 4:45 PM. Bus pass renewal occurs biannually at the Transport Helpdesk or via the student portal. If a bus experiences a route delay or breakdown, replacement shuttles are dispatched within 20 minutes. All transport complaints carry a 24-hour turnaround SLA.\n\nInstitutional Reference Citation: `[Apex Transport & Transit Fleet Manual 2026-27 - Fleet Operations Section 2.1]`",
               citations: [
                 {
-                  document_title: "Apex Hostel Living Guidelines",
-                  source_ref: "Hostel Code Annexure C",
-                  category: "HOSTEL",
-                  excerpt: "Night curfew for all undergraduate residential hostels is strictly 10:30 PM. Late entry requires prior written approval from the resident warden.",
+                  document_title: "Apex Transport & Transit Fleet Manual 2026-27",
+                  source_ref: "Fleet Operations Section 2.1",
+                  category: "TRANSPORT",
+                  excerpt: "College bus fleet operates 18 dedicated routes across the metropolitan region. Morning buses arrive by 8:35 AM; evening departures at 4:45 PM. Turnaround SLA is 24 hours.",
+                },
+              ],
+              confidence_score: 0.96,
+              routing_action: "DIRECT_ANSWER",
+              created_at: "Just now",
+            },
+          ]);
+        } else if (qLower.includes("fee") || qLower.includes("tuition") || qLower.includes("bursar") || qLower.includes("upi") || qLower.includes("payment") || qLower.includes("receipt")) {
+          setAiChatMessages((prev) => [
+            ...prev,
+            {
+              id: `ai-${Date.now()}`,
+              role: "ASSISTANT",
+              content:
+                "According to verified institutional policy in **Apex Bursar, Fee & Financial Accounts Charter 2026-27** (Finance & Accounts Division - Tuition Policy Article 3):\n\n> Semester tuition fees must be settled by the 15th of the semester commencement month. A grace period is provided until the 30th with a late fine of ₹500; thereafter ₹1000 applies. Up to 3 installments can be approved by the Bursar. For UPI or Net Banking payments debited from your bank but showing UNPAID in the portal, submit your UTR or Transaction Reference number—the Finance Office reconciles gateway logs within 48 hours and issues e-receipts.\n\nInstitutional Reference Citation: `[Apex Bursar, Fee & Financial Accounts Charter 2026-27 - Tuition Policy Article 3]`",
+              citations: [
+                {
+                  document_title: "Apex Bursar, Fee & Financial Accounts Charter 2026-27",
+                  source_ref: "Tuition Policy Article 3",
+                  category: "FEE_ACCOUNTS",
+                  excerpt: "Semester fee payments settled by 15th. UPI/NEFT debited transactions reconciled by Bursar Office within 48 hours with UTR reference number.",
+                },
+              ],
+              confidence_score: 0.95,
+              routing_action: "DIRECT_ANSWER",
+              created_at: "Just now",
+            },
+          ]);
+        } else if (qLower.includes("wifi") || qLower.includes("wi-fi") || qLower.includes("internet") || qLower.includes("gpu") || qLower.includes("workstation") || qLower.includes("lab 3") || qLower.includes("password")) {
+          setAiChatMessages((prev) => [
+            ...prev,
+            {
+              id: `ai-${Date.now()}`,
+              role: "ASSISTANT",
+              content:
+                "According to verified institutional policy in **Apex Campus IT & Computing Infrastructure Policy 2026-27** (Network Operations Center - User Access Standards):\n\n> Campus Wi-Fi (Apex-Secure and eduroam) is available across all academic blocks, hostels, and libraries using your official institutional email credentials. High-performance NVIDIA GPU workstations in Computing Lab 3 are accessible to all enrolled CSE and ECE students. Network dropouts and password resets are resolved within 24 hours by Campus IT & NOC.\n\nInstitutional Reference Citation: `[Apex Campus IT & Computing Infrastructure Policy 2026-27 - NOC Standards]`",
+              citations: [
+                {
+                  document_title: "Apex Campus IT & Computing Infrastructure Policy 2026-27",
+                  source_ref: "NOC Standards",
+                  category: "IT",
+                  excerpt: "Campus Wi-Fi available across all academic blocks. Lab 3 NVIDIA GPU workstations accessible to enrolled students. 24-hour turnaround SLA for IT issues.",
                 },
               ],
               confidence_score: 0.94,
@@ -564,23 +844,44 @@ export default function CampusCarePortal() {
               created_at: "Just now",
             },
           ]);
-        } else if (qLower.includes("attendance") || qLower.includes("percent") || qLower.includes("exam")) {
+        } else if (qLower.includes("curfew") || qLower.includes("hostel") || qLower.includes("night") || qLower.includes("geyser") || qLower.includes("mess")) {
           setAiChatMessages((prev) => [
             ...prev,
             {
               id: `ai-${Date.now()}`,
               role: "ASSISTANT",
               content:
-                "According to verified institutional policy in **Apex Academic Regulations 2026** (Academic Handbook Section 4.2):\n\n> A minimum attendance of 75 percent in each registered subject is mandatory to appear for the semester end examinations.\n\nInstitutional Reference Citation: `[Apex Academic Regulations 2026 - Academic Handbook Section 4.2]`",
+                "According to verified institutional policy in **Apex Hostel & Residential Life Handbook 2026-27** (Chief Warden Board - Residential Guidelines Chapter 5):\n\n> Hostel campus curfew is strictly 9:30 PM on weekdays and 10:00 PM on weekends. Hot water geysers operate daily during morning hours (5:30 AM – 9:00 AM) and evening hours (5:30 PM – 8:30 PM). Mess rebate of ₹80/day is granted for absences exceeding 3 consecutive days with 48h prior intimation. Residential maintenance requests carry a 24-hour SLA.\n\nInstitutional Reference Citation: `[Apex Hostel & Residential Life Handbook 2026-27 - Chapter 5]`",
               citations: [
                 {
-                  document_title: "Apex Academic Regulations 2026",
-                  source_ref: "Academic Handbook Section 4.2",
-                  category: "ACADEMIC",
-                  excerpt: "A minimum attendance of 75 percent in each registered subject is mandatory to appear for the semester end examinations.",
+                  document_title: "Apex Hostel & Residential Life Handbook 2026-27",
+                  source_ref: "Residential Guidelines Chapter 5",
+                  category: "HOSTEL",
+                  excerpt: "Hostel curfew is 9:30 PM weekdays. Hot water geysers operate 5:30-9:00 AM and 5:30-8:30 PM. Mess rebate of ₹80/day for >3 days absence.",
                 },
               ],
-              confidence_score: 0.92,
+              confidence_score: 0.95,
+              routing_action: "DIRECT_ANSWER",
+              created_at: "Just now",
+            },
+          ]);
+        } else if (qLower.includes("attendance") || qLower.includes("percent") || qLower.includes("exam") || qLower.includes("cutoff") || qLower.includes("condonation")) {
+          setAiChatMessages((prev) => [
+            ...prev,
+            {
+              id: `ai-${Date.now()}`,
+              role: "ASSISTANT",
+              content:
+                "According to verified institutional policy in **Apex Academic Regulations 2026-27** (Academic Handbook Section 4.2):\n\n> A minimum attendance of 75 percent in each registered theory and laboratory subject is mandatory to appear for the semester end examinations. Students with attendance between 65% and 74% may apply for condonation on valid medical grounds with authorized documentation.\n\nInstitutional Reference Citation: `[Apex Academic Regulations 2026-27 - Section 4.2]`",
+              citations: [
+                {
+                  document_title: "Apex Academic Regulations 2026-27",
+                  source_ref: "Section 4.2 - Attendance & Examination Eligibility",
+                  category: "ACADEMIC",
+                  excerpt: "A minimum attendance of 75 percent in each registered theory and laboratory subject is mandatory to appear for the semester end examinations. 65-74% eligible for medical condonation.",
+                },
+              ],
+              confidence_score: 0.95,
               routing_action: "DIRECT_ANSWER",
               created_at: "Just now",
             },
@@ -1325,9 +1626,25 @@ export default function CampusCarePortal() {
                     <div className="space-y-1.5 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs font-bold text-sky-400">{c.ticket_number}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                          c.category === "TRANSPORT"
+                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                            : c.category === "FEE_ACCOUNTS"
+                            ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            : c.category === "HOSTEL"
+                            ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+                            : c.category === "IT"
+                            ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
+                            : "bg-slate-800 text-slate-300 border-slate-700"
+                        }`}>
                           {c.category}
                         </span>
+                        {c.assigned_department_name && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700 flex items-center gap-1">
+                            <Building2 className="w-3 h-3 text-sky-400" />
+                            {c.assigned_department_name}
+                          </span>
+                        )}
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 text-sky-300 border border-sky-800/50 flex items-center gap-1">
                           <Tag className="w-3 h-3 text-sky-400" />
                           {c.location_tag}
@@ -1335,7 +1652,7 @@ export default function CampusCarePortal() {
                         {c.is_sensitive && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-800/50 flex items-center gap-1">
                             <Lock className="w-3 h-3 text-rose-400" />
-                            Sensitive
+                            Sensitive (ICC)
                           </span>
                         )}
                       </div>
@@ -2453,24 +2770,38 @@ export default function CampusCarePortal() {
                     {activeTenant === "APEX" ? (
                       [
                         {
-                          title: "Apex Academic Regulations 2026",
+                          title: "Apex Transport & Transit Fleet Manual 2026-27",
+                          cat: "TRANSPORT",
+                          ref: "Fleet Operations Section 2.1",
+                          chunk: "College bus fleet operates 18 dedicated routes. Morning buses arrive by 8:35 AM; evening departures at 4:45 PM. Breakdown replacements dispatched within 20 minutes with 24h SLA.",
+                          audience: "ALL",
+                        },
+                        {
+                          title: "Apex Bursar, Fee & Accounts Charter 2026-27",
+                          cat: "FEE_ACCOUNTS",
+                          ref: "Tuition Policy Article 3",
+                          chunk: "Tuition settled by 15th. UPI/NEFT payments debited but showing unpaid in portal are reconciled by Accounts within 48 hours using student UTR reference.",
+                          audience: "ALL",
+                        },
+                        {
+                          title: "Apex Academic Regulations 2026-27",
                           cat: "ACADEMIC",
-                          ref: "Academic Handbook Section 4.2",
-                          chunk: "A minimum attendance of 75 percent in each registered subject is mandatory to appear for the semester end examinations.",
+                          ref: "Section 4.2 - Attendance & Exams",
+                          chunk: "A minimum attendance of 75 percent in each registered theory and laboratory subject is mandatory to appear for semester end examinations. 65-74% eligible for medical condonation.",
                           audience: "STUDENT",
                         },
                         {
-                          title: "Apex Hostel Living Guidelines",
+                          title: "Apex Hostel & Residential Life Handbook",
                           cat: "HOSTEL",
-                          ref: "Hostel Code Annexure C",
-                          chunk: "Night curfew for all undergraduate residential hostels is strictly 10:30 PM. Late entry requires prior written approval from the resident warden.",
+                          ref: "Guidelines Chapter 5",
+                          chunk: "Night curfew is strictly 9:30 PM weekdays. Hot water geysers operate 5:30-9:00 AM and 5:30-8:30 PM daily. Mess rebate of 80 rupees/day for absences over 3 consecutive days.",
                           audience: "STUDENT",
                         },
                         {
-                          title: "Apex Grievance & Service Promise Policy",
-                          cat: "SERVICE",
-                          ref: "Student Charter Clause 8",
-                          chunk: "Facility complaints carry a guaranteed 48-hour service promise SLA with student closed-loop confirmation required before ticket closure.",
+                          title: "Apex Campus IT & Infrastructure Policy",
+                          cat: "IT",
+                          ref: "NOC User Access Standards",
+                          chunk: "Campus Wi-Fi (Apex-Secure & eduroam) covers all academic blocks. High-Performance GPU workstations in Lab 3 accessible to CSE/ECE students with 24h NOC SLA.",
                           audience: "ALL",
                         },
                       ]
@@ -2699,17 +3030,38 @@ export default function CampusCarePortal() {
                   <span className="text-slate-400 font-medium whitespace-nowrap">Suggested Inquiries:</span>
                   <button
                     type="button"
-                    onClick={() => handleSendAiMessage("What is the hostel night curfew timing and late entry policy?")}
+                    onClick={() => handleSendAiMessage("How do college bus routes and bus passes work?")}
                     className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-sky-500/40 whitespace-nowrap transition-colors"
                   >
-                    Hostel Night Curfew & Late Entry
+                    🚌 Bus Routes & Pass Renewal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendAiMessage("When is the tuition fee payment deadline and how to reconcile UPI payments?")}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-emerald-500/40 whitespace-nowrap transition-colors"
+                  >
+                    💳 Tuition Fees & UPI Reconciliation
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendAiMessage("What are the hostel night curfew and geyser hot water timings?")}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-purple-500/40 whitespace-nowrap transition-colors"
+                  >
+                    🏨 Hostel Curfew & Geysers
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSendAiMessage("What is the minimum attendance required for semester end examinations?")}
                     className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-sky-500/40 whitespace-nowrap transition-colors"
                   >
-                    Minimum Attendance for Exams
+                    🎓 75% Attendance Exam Rule
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendAiMessage("How do I connect to campus Wi-Fi and access Lab 3 GPU workstations?")}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-cyan-500/40 whitespace-nowrap transition-colors"
+                  >
+                    💻 Wi-Fi & Lab 3 GPUs
                   </button>
                   <button
                     type="button"
@@ -2717,7 +3069,7 @@ export default function CampusCarePortal() {
                     className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-amber-300 hover:text-amber-200 hover:border-amber-500/40 whitespace-nowrap transition-colors"
                     title="Tests anti-hallucination guard and prepares confirmed draft action"
                   >
-                    Pet Snake in Lab (Tests Anti-Hallucination)
+                    🐍 Pet Snake in Lab (Anti-Hallucination)
                   </button>
                 </div>
 
@@ -2769,113 +3121,235 @@ export default function CampusCarePortal() {
       {/* Interactive Modals: Complaints & Anonymous Feedback                       */}
       {/* ========================================================================= */}
       {showComplaintModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-panel w-full max-w-lg rounded-2xl p-6 border border-slate-800 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+          <div className="glass-panel w-full max-w-xl rounded-2xl p-6 border border-slate-800 shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-sky-400" />
-                <h3 className="text-base font-bold text-white">Raise Location-Tagged Grievance</h3>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    Smart AI Complaint Desk
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      Auto-Routing Active
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Type your problem in simple words — AI automatically chooses the target office & committed SLA clock
+                  </p>
+                </div>
               </div>
               <button
-                onClick={() => setShowComplaintModal(false)}
-                className="text-slate-400 hover:text-white text-xs font-semibold"
+                onClick={() => {
+                  setShowComplaintModal(false);
+                  setAiRoutingResult(null);
+                }}
+                className="text-slate-400 hover:text-white text-xs font-semibold px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
               >
                 ✕ Close
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Quick Location Tag (QR Code Preset)</label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    "QR:LAB-BLOCK-302",
-                    "QR:HOSTEL-BLOCK-B",
-                    "QR:LIBRARY-2F",
-                    "QR:CAFETERIA-MAIN",
-                  ].map((loc) => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setComplaintLocation(loc)}
-                      className={`px-2.5 py-1 rounded-lg font-mono text-[11px] transition-all ${
-                        complaintLocation === loc
-                          ? "bg-sky-500 text-white font-bold"
-                          : "bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700"
-                      }`}
-                    >
-                      {loc}
-                    </button>
-                  ))}
-                </div>
+            {/* Quick Scenario Chips */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] text-slate-400 font-semibold">
+                Instant Test Scenarios (Click to auto-populate & test AI routing):
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  {
+                    label: "🚌 Bus 14 AC Breakdown & Delay",
+                    text: "Bus Route 14 AC is completely broken and the driver was 45 minutes late picking up students at City Junction stop.",
+                    loc: "QR:TRANSIT-FLEET-R14",
+                  },
+                  {
+                    label: "🏨 Hostel Geyser Tripping Power",
+                    text: "Hostel Block C Room 204 geyser is tripping the main circuit breaker every morning with zero hot water.",
+                    loc: "QR:HOSTEL-BLOCK-C",
+                  },
+                  {
+                    label: "💳 Fee Paid via UPI but Unpaid",
+                    text: "Paid semester 5 tuition fees of ₹45,000 via UPI transaction UTR-98234827 on 12th Oct, but ERP fee status still says UNPAID with late fine threat.",
+                    loc: "QR:BURSAR-FINANCE",
+                  },
+                  {
+                    label: "💻 Lab 3 Wi-Fi & PC Boot Crash",
+                    text: "Campus Wi-Fi in Computing Lab 3 is disconnecting every 5 minutes and NVIDIA GPU workstation #04 fails to boot Ubuntu.",
+                    loc: "QR:LAB-BLOCK-302",
+                  },
+                  {
+                    label: "🛡️ Confidential Ragging Issue",
+                    text: "Senior students verbally harassing and ragging juniors near the hostel main gate after 9:30 PM curfew.",
+                    loc: "QR:HOSTEL-BLOCK-C",
+                  },
+                ].map((sc, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setComplaintDesc(sc.text);
+                      setComplaintLocation(sc.loc);
+                      handleTriggerAiRouting(sc.text, sc.loc);
+                    }}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-sky-500/50 hover:bg-sky-950/20 transition-all font-medium"
+                  >
+                    {sc.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Category</label>
-                <select
-                  value={complaintCategory}
-                  onChange={(e) => setComplaintCategory(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-sky-500"
-                >
-                  <option value="FACILITY">Facility & Maintenance (48h SLA)</option>
-                  <option value="HOSTEL">Hostel & Living (24h SLA)</option>
-                  <option value="ACADEMIC">Academic Affairs (72h SLA)</option>
-                  <option value="IT">IT & Network Infrastructure (48h SLA)</option>
-                  <option value="GRIEVANCE_SENSITIVE">Sensitive Grievance Committee (Confidential)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Title</label>
-                <input
-                  type="text"
-                  placeholder="Brief summary of the issue"
-                  value={complaintTitle}
-                  onChange={(e) => setComplaintTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-sky-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-semibold mb-1">Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="Detailed description of the grievance"
-                  value={complaintDesc}
-                  onChange={(e) => setComplaintDesc(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-sky-500 resize-none"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="sens-chk"
-                  checked={complaintIsSensitive}
-                  onChange={(e) => setComplaintIsSensitive(e.target.checked)}
-                  className="rounded bg-slate-900 border-slate-800 text-sky-500 focus:ring-0"
-                />
-                <label htmlFor="sens-chk" className="text-slate-300">
-                  Mark as Sensitive Grievance (Restricted to creator & grievance committee)
+            {/* Problem Description Input (Plain Language) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
+                  What is your problem? (Describe in simple language)
                 </label>
+                <span className="text-[10px] text-slate-500">
+                  {complaintDesc.length} characters
+                </span>
               </div>
+              <textarea
+                rows={3}
+                placeholder="E.g., My bus route 14 is running late every day... or Hostel geyser has no hot water... or tuition fee debited via UPI but showing unpaid..."
+                value={complaintDesc}
+                onChange={(e) => {
+                  setComplaintDesc(e.target.value);
+                  handleTriggerAiRouting(e.target.value);
+                }}
+                className="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 resize-none shadow-inner"
+              />
+            </div>
+
+            {/* Live AI Auto-Routing Card */}
+            {complaintDesc.trim() && (
+              <div className="rounded-xl p-3.5 border border-sky-500/40 bg-gradient-to-br from-sky-950/40 to-slate-900/80 space-y-2.5 animate-fadeIn">
+                <div className="flex items-center justify-between pb-2 border-b border-sky-500/20">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-sky-400" />
+                    <span className="text-xs font-bold text-white">AI Real-Time Dispatch Engine</span>
+                    {isAiRouting && (
+                      <span className="text-[10px] text-sky-400 animate-pulse flex items-center gap-1 font-mono">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Verifying SLA...
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                    Confidence: {Math.round((aiRoutingResult?.confidence_score || 0.95) * 100)}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-medium">Assigned Destination Office:</span>
+                    <strong className="text-sky-300 text-[12px] flex items-center gap-1 mt-0.5">
+                      <Building2 className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                      {aiRoutingResult?.assigned_department_name || "Office of Transportation & Transit Fleet"}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-medium">Committed SLA Turnaround:</span>
+                    <strong className="text-amber-300 text-[12px] flex items-center gap-1 mt-0.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                      {aiRoutingResult?.sla_committed_hours || 24} Hours Guaranteed Response
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                    Category: {aiRoutingResult?.category_label || aiRoutingResult?.category || complaintCategory}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    aiRoutingResult?.severity === "CRITICAL"
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/30 animate-pulse"
+                      : aiRoutingResult?.severity === "HIGH"
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  }`}>
+                    Severity: {aiRoutingResult?.severity || "HIGH"}
+                  </span>
+                  {aiRoutingResult?.key_entities && aiRoutingResult.key_entities.length > 0 && (
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Entities: {aiRoutingResult.key_entities.join(", ")}
+                    </span>
+                  )}
+                </div>
+
+                {/* AI Transparent Reasoning */}
+                <p className="text-[11px] text-slate-300 bg-slate-950/40 p-2 rounded-lg border border-slate-800/50 italic leading-relaxed">
+                  💡 <strong>AI Reasoning:</strong> {aiRoutingResult?.routing_reasoning || "Natural language analysis categorized grievance and targeted responsible campus department."}
+                </p>
+              </div>
+            )}
+
+            {/* Location Tag Selector */}
+            <div className="space-y-1.5 text-xs">
+              <label className="block text-slate-400 font-semibold">Campus Location / Facility Tag (QR Code Preset)</label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "QR:TRANSIT-FLEET-R14",
+                  "QR:HOSTEL-BLOCK-C",
+                  "QR:BURSAR-FINANCE",
+                  "QR:LAB-BLOCK-302",
+                  "QR:LIBRARY-2F",
+                  "QR:CAFETERIA-MAIN",
+                ].map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => {
+                      setComplaintLocation(loc);
+                      if (complaintDesc.trim()) handleTriggerAiRouting(complaintDesc, loc);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-mono text-[11px] transition-all ${
+                      complaintLocation === loc
+                        ? "bg-sky-500 text-white font-bold shadow-md shadow-sky-500/25"
+                        : "bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sensitive Checkbox */}
+            <div className="flex items-center gap-2 pt-1 text-xs">
+              <input
+                type="checkbox"
+                id="sens-chk"
+                checked={complaintIsSensitive}
+                onChange={(e) => setComplaintIsSensitive(e.target.checked)}
+                className="rounded bg-slate-900 border-slate-800 text-sky-500 focus:ring-0"
+              />
+              <label htmlFor="sens-chk" className="text-slate-300 cursor-pointer">
+                Confidential Statutory Grievance (Restricted strictly to Ombudsman & Internal Complaints Committee)
+              </label>
             </div>
 
             <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowComplaintModal(false)}
+                onClick={() => {
+                  setShowComplaintModal(false);
+                  setAiRoutingResult(null);
+                }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200"
               >
                 Cancel
               </button>
               <button
                 type="button"
+                disabled={!complaintDesc.trim()}
                 onClick={handleCreateComplaint}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-white shadow-lg shadow-sky-500/25 transition-all flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 text-white shadow-lg shadow-sky-500/25 transition-all flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
-                Submit Grievance
+                Auto-Dispatch Grievance via AI
               </button>
             </div>
           </div>
